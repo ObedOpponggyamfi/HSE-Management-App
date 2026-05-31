@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Excel lock / temp files
+~$*.xlsx
+*.tmp
+
+# Editor / tooling
+.omc/
+.vscode/
+.idea/
+.DS_Store
