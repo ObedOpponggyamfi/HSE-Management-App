@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Contractors{% endblock %}
+{% block heading %}Contractor HSE Performance{% endblock %}
+{% block subheading %}Owner vs contractor TRIFR — man-hours & recordables consolidated from the spine{% endblock %}
+
+{% block content %}
+<div class="chart-grid">
+  <div class="card span-2">
+    <h3 class="card-title">TRIFR by Company <small>(target ≤ {{ view.chart.target }})</small></h3>
+    <div class="chart-box"><canvas id="contractorChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <table class="data-table sortable">
+    <thead><tr>
+      <th>Company</th><th>Scope</th><th>Man-Hours</th><th>Recordables</th>
+      <th>LTIs</th><th>TRIFR</th><th>LTIFR</th>
+    </tr></thead>
+    <tbody>
+      {% for r in view.rows %}
+      <tr>
+        <td><strong>{{ r.company }}</strong></td>
+        <td>{{ r.scope }}</td>
+        <td>{{ r.manhours|comma }}</td>
+        <td>{{ r.recordables }}</td>
+        <td>{{ r.ltis }}</td>
+        <td class="{{ 'cell-bad' if r.trifr > view.chart.target else 'cell-ok' }}">{{ r.trifr }}</td>
+        <td>{{ r.ltifr }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

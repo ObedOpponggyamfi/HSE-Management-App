@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Registers{% endblock %}
+{% block heading %}Supporting Registers{% endblock %}
+{% block subheading %}Permits-to-work, audits and safety-critical equipment{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% macro regtable(title, rows) %}
+<div class="card">
+  <h3 class="card-title">{{ title }}</h3>
+  {% if rows %}
+  <table class="data-table sortable">
+    <thead><tr>{% for k in rows[0].keys() %}<th>{{ k|replace('_',' ') }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{{ 'row-alert' if r.get('Status') in ['Expired','Overdue','Open'] else '' }}">
+        {% for k, v in r.items() %}
+          {% if k == 'Status' %}
+            <td><span class="pill pill-{{ v|lower|replace(' ','-') }}">{{ v }}</span></td>
+          {% else %}<td>{{ v }}</td>{% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty">No data loaded.</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+{{ regtable("Permit-to-Work Register", permits) }}
+{{ regtable("Audit Register", audits) }}
+{{ regtable("Safety-Critical Equipment", equipment) }}
+{% endblock %}

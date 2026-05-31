@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Compliance{% endblock %}
+{% block heading %}Regulatory Compliance (Ghana){% endblock %}
+{% block subheading %}Status auto-derived from each item's frequency and last-completed date vs today{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big">
+    <span class="mini-n">{{ summary.pct }}%</span>
+    <span class="mini-l">Overall compliant</span>
+  </div>
+  <div class="mini"><span class="mini-n">{{ summary.counts.get('Compliant', 0) }}</span><span class="mini-l">Compliant</span></div>
+  <div class="mini"><span class="mini-n">{{ summary.counts.get('Due Soon', 0) }}</span><span class="mini-l">Due Soon</span></div>
+  <div class="mini"><span class="mini-n">{{ summary.counts.get('Overdue', 0) }}</span><span class="mini-l">Overdue</span></div>
+</div>
+
+<div class="card">
+  <table class="data-table sortable">
+    <thead><tr>
+      <th>Requirement</th><th>Regulator</th><th>Reference</th><th>Freq (mo)</th>
+      <th>Last Completed</th><th>Due Date</th><th>Days to Due</th><th>Owner</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{{ 'row-alert' if r.status == 'Overdue' else '' }}">
+        <td>{{ r.item }}</td>
+        <td>{{ r.regulator }}</td>
+        <td>{{ r.reference }}</td>
+        <td>{{ r.frequency }}</td>
+        <td>{{ r.last }}</td>
+        <td>{{ r.due }}</td>
+        <td>{{ r.days }}</td>
+        <td>{{ r.owner }}</td>
+        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

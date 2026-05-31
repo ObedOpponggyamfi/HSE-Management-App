@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Data & Refresh{% endblock %}
+{% block heading %}Data & Refresh{% endblock %}
+{% block subheading %}The app consolidates every Excel file in the data folder. Edit them and click Refresh.{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="data-head">
+    <div>
+      <div class="data-dir">📁 {{ status.data_dir }}</div>
+      <div class="foot-dim">Last consolidated: {{ status.loaded_at }} ·
+        {{ status.total_files }} files · {{ status.total_rows }} rows</div>
+    </div>
+    <form method="post" action="{{ url_for('refresh') }}">
+      <input type="hidden" name="next" value="{{ url_for('data_page') }}">
+      <button class="btn-refresh big" type="submit">⟳ Refresh now</button>
+    </form>
+  </div>
+
+  <table class="data-table">
+    <thead><tr><th>Dataset</th><th>File</th><th>Rows</th><th>Last modified</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for s in status.files %}
+      <tr class="{{ 'row-alert' if not s.loaded else '' }}">
+        <td class="mono">{{ s.key }}</td>
+        <td>{{ s.file }}</td>
+        <td>{{ s.rows }}</td>
+        <td>{{ s.modified.strftime('%d-%b-%Y %H:%M') if s.modified else '—' }}</td>
+        <td>
+          {% if s.loaded %}<span class="pill pill-compliant">loaded</span>
+          {% else %}<span class="pill pill-overdue">{{ s.error or 'missing' }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card info">
+  <h3 class="card-title">How the workflow works</h3>
+  <ol class="howto">
+    <li>Your safety spreadsheets live in <code>{{ status.data_dir }}</code> (one file per dataset).</li>
+    <li>Add or edit rows in those Excel files — keep the column headers unchanged.</li>
+    <li>Click <strong>⟳ Refresh</strong> (top-right or above). The app re-reads every file and
+        recomputes all KPIs, charts and tables instantly.</li>
+    <li>Don't have data yet? Run <code>python generate_dummy_data.py</code> to regenerate the samples.</li>
+  </ol>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Executive HSE Dashboard{% endblock %}
+{% block subheading %}Live consolidation of safety Excel data — filter and the whole view recalculates{% endblock %}
+
+{% macro kpival(c) -%}
+  {%- if c.fmt == 'int' -%}{{ c.value|comma }}
+  {%- elif c.fmt == 'pct' -%}{{ c.value|pct1 }}
+  {%- elif c.fmt == 'dec' -%}{{ c.value|dec2 }}
+  {%- else -%}{{ c.value }}{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="kpi-grid">
+  {% for c in kpis %}
+  <div class="kpi-card s-{{ c.status }}">
+    <div class="kpi-top">
+      <span class="kpi-label">{{ c.label }}</span>
+      <span class="kpi-flag"></span>
+    </div>
+    <div class="kpi-value">{{ kpival(c) }}</div>
+    <div class="kpi-sub">{{ c.sub }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="chart-grid">
+  <div class="card span-2">
+    <h3 class="card-title">Incident & Recordable Trend <small>(monthly, multi-year)</small></h3>
+    <div class="chart-box"><canvas id="trendChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Incidents by Type</h3>
+    <div class="chart-box"><canvas id="typeChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">High-risk Locations</h3>
+    <div class="chart-box"><canvas id="locationChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Corrective Actions by Status</h3>
+    <div class="chart-box"><canvas id="actionsChart"></canvas></div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Training Completion by Department</h3>
+    <div class="chart-box"><canvas id="trainingChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Most recent incidents</h3>
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>Date</th><th>Location</th><th>Type</th><th>Severity</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for r in recent %}
+      <tr>
+        <td class="mono">{{ r.id }}</td>
+        <td>{{ r.date }}</td>
+        <td>{{ r.area }}</td>
+        <td>{{ r.type }}</td>
+        <td><span class="sev sev-{{ r.severity }}">{{ r.severity }}</span></td>
+        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">No incidents match the current filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

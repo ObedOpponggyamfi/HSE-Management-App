@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Environmental{% endblock %}
+{% block heading %}Environmental Monitoring{% endblock %}
+{% block subheading %}Regulated parameters vs limits — PM10 (≤{{ view.chart.pm10_limit if view.chart else '' }}), pH band, WAD cyanide{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ view.pct }}%</span><span class="mini-l">Readings within limit</span></div>
+</div>
+
+<div class="chart-grid">
+  <div class="card"><h3 class="card-title">PM10 Dust vs EPA Limit</h3><div class="chart-box"><canvas id="pm10Chart"></canvas></div></div>
+  <div class="card"><h3 class="card-title">WAD Cyanide vs ICMC Limit</h3><div class="chart-box"><canvas id="cnChart"></canvas></div></div>
+  <div class="card"><h3 class="card-title">Energy (MWh)</h3><div class="chart-box"><canvas id="energyChart"></canvas></div></div>
+  <div class="card"><h3 class="card-title">Water (m³)</h3><div class="chart-box"><canvas id="waterChart"></canvas></div></div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Monthly monitoring</h3>
+  <table class="data-table">
+    <thead><tr>
+      <th>Period</th><th>Waste (t)</th><th>Recycling</th><th>Energy (MWh)</th><th>Water (m³)</th>
+      <th>Fuel (L)</th><th>PM10</th><th>pH</th><th>WAD CN</th>
+    </tr></thead>
+    <tbody>
+      {% for r in view.rows %}
+      <tr>
+        <td>{{ r.period }}</td>
+        <td>{{ r.waste }}</td>
+        <td>{{ r.recycling }}%</td>
+        <td>{{ r.energy }}</td>
+        <td>{{ r.water }}</td>
+        <td>{{ r.fuel }}</td>
+        <td class="{{ 'cell-bad' if not r.pm10_ok else 'cell-ok' }}">{{ r.pm10 }}</td>
+        <td class="{{ 'cell-bad' if not r.ph_ok else 'cell-ok' }}">{{ r.ph }}</td>
+        <td class="{{ 'cell-bad' if not r.cn_ok else 'cell-ok' }}">{{ r.cn }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

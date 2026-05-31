@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}HSE Management{% endblock %} · {{ company }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ===================== Sidebar ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">HSE</div>
+      <div class="brand-text">
+        <span class="brand-title">{{ company }}</span>
+        <span class="brand-sub">Health · Safety · Environment</span>
+      </div>
+    </div>
+    <nav class="nav">
+      {% set items = [
+        ('dashboard','Dashboard','▤'),
+        ('incidents','Incident Register','⚠'),
+        ('actions','Corrective Actions','✔'),
+        ('compliance','Compliance','§'),
+        ('environmental','Environmental','❉'),
+        ('contractors','Contractors','⛏'),
+        ('registers','Registers','▦'),
+        ('data_page','Data & Refresh','⟳')
+      ] %}
+      {% for endpoint, label, icon in items %}
+      <a class="nav-item {{ 'active' if nav_active == endpoint else '' }}"
+         href="{{ url_for(endpoint) }}">
+        <span class="nav-ico">{{ icon }}</span><span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="dot {{ 'ok' if status.total_files else 'bad' }}"></div>
+      <div>
+        <div class="foot-strong">{{ status.total_files }} files · {{ status.total_rows }} rows</div>
+        <div class="foot-dim">Updated {{ status.loaded_at }}</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== Main ===================== -->
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">{% block heading %}{% endblock %}</h1>
+        <p class="page-sub">{% block subheading %}{% endblock %}</p>
+      </div>
+      <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="btn-refresh" type="submit" title="Re-read the Excel files in data/">
+          ⟳ Refresh data
+        </button>
+      </form>
+    </header>
+
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}
+        <div class="flash">{% for m in msgs %}<span>✔ {{ m }}</span>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
+
+    {% block filterbar %}
+    <form class="filterbar" method="get">
+      {% set sel = [('year','Year', options.years), ('month','Month', options.months),
+                    ('dept','Department', options.departments), ('area','Location / Area', options.areas)] %}
+      {% for name, label, opts in sel %}
+      <label class="filter">
+        <span>{{ label }}</span>
+        <select name="{{ name }}" onchange="this.form.submit()">
+          {% for o in opts %}
+          <option value="{{ o }}" {{ 'selected' if filters[name] == o else '' }}>{{ o }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endfor %}
+      <a class="filter-reset" href="{{ request.path }}">Reset</a>
+    </form>
+    {% endblock %}
+
+    <section class="content">
+      {% block content %}{% endblock %}
+    </section>
+
+    <footer class="appfoot">
+      HSE Management App · local consolidation of safety Excel data ·
+      data folder: <code>{{ status.data_dir }}</code>
+    </footer>
+  </main>
+</div>
+
+<script>window.HSE_CHARTS = {{ charts | default(None) | tojson | safe }};</script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

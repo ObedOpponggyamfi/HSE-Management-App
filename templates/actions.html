@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Corrective Actions{% endblock %}
+{% block heading %}Corrective Actions Tracker{% endblock %}
+{% block subheading %}{{ rows|length }} action(s) — overdue items are highlighted{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  {% for s in summary.labels %}
+  <div class="mini">
+    <span class="mini-n">{{ summary.data[loop.index0] }}</span>
+    <span class="mini-l">{{ s }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <table class="data-table sortable">
+    <thead><tr>
+      <th>ID</th><th>Source</th><th>Description</th><th>Area</th><th>Owner</th>
+      <th>Priority</th><th>Raised</th><th>Due</th><th>Days Overdue</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{{ 'row-alert' if r.overdue else '' }}">
+        <td class="mono">{{ r.id }}</td>
+        <td class="mono">{{ r.source }}</td>
+        <td>{{ r.desc }}</td>
+        <td>{{ r.area }}</td>
+        <td>{{ r.owner }}</td>
+        <td><span class="pill pill-{{ r.priority|lower }}">{{ r.priority }}</span></td>
+        <td>{{ r.raised }}</td>
+        <td>{{ r.due }}</td>
+        <td>{{ r.days_overdue if r.overdue else '' }}</td>
+        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="empty">No actions match the current filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
