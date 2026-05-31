@@ -23,6 +23,19 @@ This produces **`Asanko_HSE_Management_Dashboard.xlsx`**. Open it in Excel and t
 formulas calculate on load (the workbook sets `fullCalcOnLoad`). A pre-generated copy
 is included in the repo so you can open it immediately.
 
+### Verifying the workbook
+
+Because `openpyxl` writes formulas without evaluating them, a typo in a structured
+reference or named range would only surface as `#REF!` / `#NAME?` in Excel. Run the
+included static checker to validate the generated file without opening Excel:
+
+```bash
+python verify_workbook.py
+```
+
+It reloads the `.xlsx` and confirms every `table[column]` reference and every named
+range resolves, and that parentheses are balanced across all formulas (4,500+ scanned).
+
 > Only `openpyxl`, `pandas` and `numpy` are used — no internet-install or exotic
 > dependencies.
 
