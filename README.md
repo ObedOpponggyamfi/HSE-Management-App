@@ -26,6 +26,9 @@ The app serves at **http://127.0.0.1:5050/** (it auto-opens your browser).
 To use a different port: `set PORT=8080 && python app.py` (Windows) /
 `PORT=8080 python app.py` (macOS/Linux).
 
+**Windows shortcut:** just double-click **`run_app.bat`** — it finds Python, installs
+dependencies on first run, generates the sample data, and launches the app for you.
+
 *Why 5050 and not 5000?* Port 5000 is often taken by other local apps (e.g. another
 Flask project), so the default avoids the clash. Change it with `PORT` anytime.
 
