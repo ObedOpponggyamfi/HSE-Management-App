@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block heading %}User Management{% endblock %}
+{% block subheading %}Create accounts and assign roles (Worker → Supervisor → HSE Officer → Manager → Admin){% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="two-col">
+  <div class="card">
+    <h3 class="card-title">Accounts</h3>
+    <table class="data-table">
+      <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="mono">{{ u.username }}</td><td>{{ u.name }}</td><td>{{ u.email }}</td>
+          <td><span class="pill pill-role">{{ u.role_label }}</span></td>
+          <td>{{ '✔' if u.active else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card form-card">
+    <h3 class="card-title">Add user</h3>
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {% for field in form if field.name not in ('csrf_token','submit') %}
+      <div class="form-row">
+        {{ field.label(class="form-label") }}
+        {{ field(class="form-input") }}
+        {% if field.errors %}<div class="form-err">{{ field.errors|join(', ') }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {{ form.submit(class="btn-refresh") }}
+    </form>
+  </div>
+</div>
+{% endblock %}

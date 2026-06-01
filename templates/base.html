@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}HSE Management{% endblock %} · {{ company }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
 </head>
 <body>
 <div class="layout">
@@ -23,24 +22,36 @@
       {% set items = [
         ('dashboard','Dashboard','▤'),
         ('incidents','Incident Register','⚠'),
+        ('events','Event Reports','◎'),
         ('actions','Corrective Actions','✔'),
         ('compliance','Compliance','§'),
         ('environmental','Environmental','❉'),
         ('contractors','Contractors','⛏'),
         ('registers','Registers','▦'),
+        ('alerts_page','Alerts','◔'),
+        ('report','Report','🖨'),
         ('data_page','Data & Refresh','⟳')
       ] %}
       {% for endpoint, label, icon in items %}
-      <a class="nav-item {{ 'active' if nav_active == endpoint else '' }}"
-         href="{{ url_for(endpoint) }}">
+      <a class="nav-item {{ 'active' if nav_active == endpoint else '' }}" href="{{ url_for(endpoint) }}">
         <span class="nav-ico">{{ icon }}</span><span>{{ label }}</span>
+        {% if endpoint == 'alerts_page' and alert_total %}<span class="nav-badge">{{ alert_total }}</span>{% endif %}
       </a>
       {% endfor %}
+      {% if current_user.is_authenticated and current_user.can('manager') %}
+      <div class="nav-section">Administration</div>
+      {% if current_user.can('admin') %}
+      <a class="nav-item {{ 'active' if nav_active == 'admin_users' else '' }}" href="{{ url_for('admin_users') }}">
+        <span class="nav-ico">⚙</span><span>Users</span></a>
+      {% endif %}
+      <a class="nav-item {{ 'active' if nav_active == 'admin_audit' else '' }}" href="{{ url_for('admin_audit') }}">
+        <span class="nav-ico">≣</span><span>Audit Trail</span></a>
+      {% endif %}
     </nav>
     <div class="sidebar-foot">
       <div class="dot {{ 'ok' if status.total_files else 'bad' }}"></div>
       <div>
-        <div class="foot-strong">{{ status.total_files }} files · {{ status.total_rows }} rows</div>
+        <div class="foot-strong">{{ status.total_files }} datasets · {{ status.total_rows }} rows</div>
         <div class="foot-dim">Updated {{ status.loaded_at }}</div>
       </div>
     </div>
@@ -53,17 +64,32 @@
         <h1 class="page-title">{% block heading %}{% endblock %}</h1>
         <p class="page-sub">{% block subheading %}{% endblock %}</p>
       </div>
-      <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
-        <input type="hidden" name="next" value="{{ request.full_path }}">
-        <button class="btn-refresh" type="submit" title="Re-read the Excel files in data/">
-          ⟳ Refresh data
-        </button>
-      </form>
+      <div class="topbar-actions">
+        <a class="btn-bell" href="{{ url_for('alerts_page') }}" title="Alerts">◔
+          {% if alert_total %}<span class="bell-badge">{{ alert_total }}</span>{% endif %}</a>
+        <a class="btn-ghost" href="{{ url_for('event_new') }}">＋ Report event</a>
+        {% if current_user.is_authenticated and current_user.can('supervisor') %}
+        <a class="btn-ghost" href="{{ url_for('incident_new') }}">＋ Incident</a>
+        {% endif %}
+        <form class="refresh-form" method="post" action="{{ url_for('refresh') }}">
+          <input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="btn-refresh" type="submit" title="Reload from the database">⟳ Refresh</button>
+        </form>
+        {% if current_user.is_authenticated %}
+        <div class="user-chip">
+          <div class="user-meta"><span class="user-name">{{ current_user.name }}</span>
+            <span class="user-role">{{ current_user.role_label }}</span></div>
+          <a class="user-out" href="{{ url_for('logout') }}" title="Sign out">⎋</a>
+        </div>
+        {% endif %}
+      </div>
     </header>
 
-    {% with msgs = get_flashed_messages() %}
+    {% with msgs = get_flashed_messages(with_categories=true) %}
       {% if msgs %}
-        <div class="flash">{% for m in msgs %}<span>✔ {{ m }}</span>{% endfor %}</div>
+        <div class="flash-wrap">
+          {% for cat, m in msgs %}<div class="flash flash-{{ cat or 'good' }}">{{ m }}</div>{% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
 
@@ -72,26 +98,19 @@
       {% set sel = [('year','Year', options.years), ('month','Month', options.months),
                     ('dept','Department', options.departments), ('area','Location / Area', options.areas)] %}
       {% for name, label, opts in sel %}
-      <label class="filter">
-        <span>{{ label }}</span>
+      <label class="filter"><span>{{ label }}</span>
         <select name="{{ name }}" onchange="this.form.submit()">
-          {% for o in opts %}
-          <option value="{{ o }}" {{ 'selected' if filters[name] == o else '' }}>{{ o }}</option>
-          {% endfor %}
-        </select>
-      </label>
+          {% for o in opts %}<option value="{{ o }}" {{ 'selected' if filters[name] == o else '' }}>{{ o }}</option>{% endfor %}
+        </select></label>
       {% endfor %}
       <a class="filter-reset" href="{{ request.path }}">Reset</a>
     </form>
     {% endblock %}
 
-    <section class="content">
-      {% block content %}{% endblock %}
-    </section>
+    <section class="content">{% block content %}{% endblock %}</section>
 
     <footer class="appfoot">
-      HSE Management App · local consolidation of safety Excel data ·
-      data folder: <code>{{ status.data_dir }}</code>
+      HSE Management App · DB: <code>{{ status.db_path }}</code>
     </footer>
   </main>
 </div>

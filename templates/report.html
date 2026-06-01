@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}HSE Report{% endblock %}
+{% block heading %}HSE Management Report{% endblock %}
+{% block subheading %}Generated {{ generated }} — use “Print / Save as PDF” for a board-ready copy{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% macro kpival(c) -%}
+  {%- if c.fmt == 'int' -%}{{ c.value|comma }}{%- elif c.fmt == 'pct' -%}{{ c.value|pct1 }}
+  {%- elif c.fmt == 'dec' -%}{{ c.value|dec2 }}{%- else -%}{{ c.value }}{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="report-toolbar no-print">
+  <button class="btn-refresh" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <a class="btn-ghost" href="{{ url_for('export_table', key='all') }}">⤓ Export all data (Excel)</a>
+</div>
+
+<div class="report-sheet">
+  <div class="report-head">
+    <div><div class="report-co">{{ company }}</div><div class="report-ti">HSE Management Report</div></div>
+    <div class="report-meta">Generated {{ generated }}</div>
+  </div>
+
+  <h3 class="card-title">Key Performance Indicators</h3>
+  <div class="kpi-grid">
+    {% for c in kpis %}
+    <div class="kpi-card s-{{ c.status }}">
+      <div class="kpi-label">{{ c.label }}</div>
+      <div class="kpi-value">{{ kpival(c) }}</div>
+      <div class="kpi-sub">{{ c.sub }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="chart-grid">
+    <div class="card span-2"><h3 class="card-title">Incident Trend</h3><div class="chart-box"><canvas id="trendChart"></canvas></div></div>
+    <div class="card"><h3 class="card-title">By Type</h3><div class="chart-box"><canvas id="typeChart"></canvas></div></div>
+    <div class="card"><h3 class="card-title">By Location</h3><div class="chart-box"><canvas id="locationChart"></canvas></div></div>
+  </div>
+
+  <div class="report-cols">
+    <div class="card">
+      <h3 class="card-title">Regulatory Compliance</h3>
+      <p class="big-stat">{{ comp.pct }}% <small>compliant</small></p>
+      <p>Compliant: {{ comp.counts.get('Compliant', 0) }} ·
+         Due soon: {{ comp.counts.get('Due Soon', 0) }} ·
+         Overdue: {{ comp.counts.get('Overdue', 0) }}</p>
+    </div>
+    <div class="card">
+      <h3 class="card-title">Environmental</h3>
+      <p class="big-stat">{{ env.pct }}% <small>readings within limit</small></p>
+      <p>PM10, discharge pH and WAD cyanide vs regulatory limits.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

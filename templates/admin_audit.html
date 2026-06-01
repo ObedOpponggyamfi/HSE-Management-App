@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Audit Trail{% endblock %}
+{% block heading %}Audit Trail{% endblock %}
+{% block subheading %}Who did what, and when — last 300 events{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Ref</th><th>Detail</th></tr></thead>
+    <tbody>
+      {% for l in logs %}
+      <tr>
+        <td>{{ l.ts.strftime('%d-%b-%Y %H:%M:%S') }}</td>
+        <td class="mono">{{ l.username }}</td>
+        <td><span class="pill pill-{{ l.action }}">{{ l.action }}</span></td>
+        <td>{{ l.entity }}</td><td class="mono">{{ l.ref }}</td><td>{{ l.detail }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">No audit entries yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

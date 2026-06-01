@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · HSE Management</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">HSE</div>
+      <div>
+        <div class="login-title">ASANKO GOLD MINE</div>
+        <div class="login-sub">HSE Management System</div>
+      </div>
+    </div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash flash-{{ cat or 'good' }}">{{ m }}</div>{% endfor %}
+    {% endwith %}
+
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <label class="login-label">{{ form.username.label.text }}</label>
+      {{ form.username(class="login-input", placeholder="username") }}
+      <label class="login-label">{{ form.password.label.text }}</label>
+      {{ form.password(class="login-input", placeholder="password") }}
+      {{ form.submit(class="login-btn") }}
+    </form>
+
+    <div class="login-hint">
+      Demo logins — <strong>admin</strong>/admin123 · <strong>hse</strong>/hse123 · <strong>worker</strong>/worker123
+    </div>
+  </div>
+</body>
+</html>

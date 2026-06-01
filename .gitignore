@@ -10,6 +10,10 @@ env/
 ~$*.xlsx
 *.tmp
 
+# Runtime database (recreated on first run from data/*.xlsx)
+*.db
+hse.db
+
 # Editor / tooling
 .omc/
 .vscode/

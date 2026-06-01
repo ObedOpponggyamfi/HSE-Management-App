@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-core.py -- the consolidation + analytics engine.
+core.py -- the consolidation + analytics engine (database-backed).
 
-DataStore reads every safety Excel file from the data/ folder, derives the
-fields the dashboard needs (Year/Month, Recordable/LTI flags, overdue/compliance
-status ...), keeps them in memory, and recomputes all KPIs / chart series on
-demand. `refresh()` simply re-reads the folder, so dropping new rows into the
-Excel files and hitting Refresh in the app surfaces them immediately.
+DataStore reads each safety dataset from the SQLite database (populated from the
+Excel files by importer.py), derives the fields the dashboard needs
+(Year/Month, Recordable/LTI flags, overdue/compliance status ...), keeps them in
+memory, and recomputes all KPIs / chart series on demand. `refresh()` reloads
+from the database, so newly captured records (or a re-import from Excel) surface
+immediately.
 """
 import datetime as dt
 import os
 
 import pandas as pd
+from sqlalchemy import inspect
 
 import config as C
+from extensions import db
 
 TODAY = pd.Timestamp(dt.date.today())
 
@@ -57,7 +60,7 @@ def days_lti_status(val):
 
 
 class DataStore:
-    """Loads & consolidates the safety spreadsheets; computes all analytics."""
+    """Loads & consolidates the safety datasets from the DB; computes analytics."""
 
     def __init__(self, data_dir: str = C.DATA_DIR):
         self.data_dir = data_dir
@@ -66,28 +69,30 @@ class DataStore:
         self.loaded_at: dt.datetime | None = None
         self.load()
 
-    # ----- loading / refreshing -------------------------------------------
+    # ----- loading / refreshing (from the database) -----------------------
     def load(self):
         global TODAY
         TODAY = _today()
         self.frames, self.status = {}, []
-        for key, spec in C.DATASETS.items():
-            path = os.path.join(self.data_dir, spec["file"])
-            entry = {"key": key, "file": spec["file"], "rows": 0,
-                     "loaded": False, "modified": None, "error": None}
+        try:
+            existing = set(inspect(db.engine).get_table_names())
+        except Exception:
+            existing = set()
+
+        for key in list(C.DATASETS.keys()) + ["events"]:
+            entry = {"key": key, "rows": 0, "loaded": False, "error": None}
             try:
-                if os.path.exists(path):
-                    df = pd.read_excel(path, sheet_name=spec["sheet"])
+                if key in existing:
+                    df = pd.read_sql_table(key, db.engine)
                     df = self._derive(key, df)
                     self.frames[key] = df
-                    entry.update(loaded=True, rows=len(df),
-                                 modified=dt.datetime.fromtimestamp(os.path.getmtime(path)))
+                    entry.update(loaded=not df.empty, rows=len(df))
                 else:
-                    entry["error"] = "file not found"
                     self.frames[key] = pd.DataFrame()
-            except Exception as exc:                       # keep app alive on bad file
-                entry["error"] = str(exc)
+                    entry["error"] = "not in database"
+            except Exception as exc:
                 self.frames[key] = pd.DataFrame()
+                entry["error"] = str(exc)
             self.status.append(entry)
         self.loaded_at = dt.datetime.now()
         return self
@@ -105,7 +110,7 @@ class DataStore:
             return df
 
         if key == "incidents":
-            df["Date"] = pd.to_datetime(df["Date"])
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
             for c in ("Reported", "CAR_Due"):
                 if c in df:
                     df[c] = pd.to_datetime(df[c], errors="coerce")
@@ -119,7 +124,7 @@ class DataStore:
                                  & (df["CAR_Due"] < TODAY)).astype(int)
 
         elif key == "activity":
-            df["Period"] = pd.to_datetime(df["Period"])
+            df["Period"] = pd.to_datetime(df["Period"], errors="coerce")
             df["Year"] = df["Period"].dt.year
             df["Month"] = df["Period"].dt.month
             df["MonthName"] = df["Period"].dt.strftime("%b")
@@ -132,7 +137,7 @@ class DataStore:
             df["DaysOverdue"] = ((TODAY - df["Due"]).dt.days).where(df["Overdue"] == 1, 0)
 
         elif key == "compliance":
-            df["Last_Completed"] = pd.to_datetime(df["Last_Completed"])
+            df["Last_Completed"] = pd.to_datetime(df["Last_Completed"], errors="coerce")
             df["Due_Date"] = df.apply(
                 lambda r: r["Last_Completed"] + pd.DateOffset(months=int(r["Frequency_Months"])),
                 axis=1)
@@ -141,7 +146,7 @@ class DataStore:
                 lambda d: "Overdue" if d < 0 else ("Due Soon" if d <= 30 else "Compliant"))
 
         elif key == "environmental":
-            df["Period"] = pd.to_datetime(df["Period"])
+            df["Period"] = pd.to_datetime(df["Period"], errors="coerce")
             df["Year"] = df["Period"].dt.year
             df["MonthName"] = df["Period"].dt.strftime("%b")
             df["MonthKey"] = df["Period"].dt.strftime("%Y-%m")
@@ -169,6 +174,16 @@ class DataStore:
             df["Status"] = df["DaysToDue"].apply(
                 lambda d: "Overdue" if d < 0 else ("Due Soon" if d <= 30 else "Compliant"))
 
+        elif key == "events":
+            df = df.rename(columns={
+                "ref": "Ref", "category": "Category", "date": "Date", "area": "Area",
+                "department": "Department", "severity": "Severity",
+                "description": "Description", "reported_by": "Reported_By", "status": "Status"})
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+            df["Year"] = df["Date"].dt.year
+            df["MonthName"] = df["Date"].dt.strftime("%b")
+            df["MonthKey"] = df["Date"].dt.strftime("%Y-%m")
+
         return df
 
     # ----- filtering -------------------------------------------------------
@@ -187,21 +202,19 @@ class DataStore:
             mask &= df["Area"] == f["area"]
         return df[mask]
 
-    # ----- timeline helper -------------------------------------------------
     def _timeline(self):
-        """Ordered list of (MonthKey, label) across the activity history."""
         act = self.df("activity")
         if act.empty:
             return []
-        keys = sorted(act["MonthKey"].unique())
-        labels = {k: pd.to_datetime(k + "-01").strftime("%b-%y") for k in keys}
-        return [(k, labels[k]) for k in keys]
+        keys = sorted(act["MonthKey"].dropna().unique())
+        return [(k, pd.to_datetime(k + "-01").strftime("%b-%y")) for k in keys]
 
     # ----- KPIs ------------------------------------------------------------
     def kpis(self, f):
         inc = self._filter(self.df("incidents"), f)
         act = self._filter(self.df("activity"), f)
         acts = self._filter(self.df("actions"), f, year=False, month=False)
+        evt = self._filter(self.df("events"), f)
 
         manhours = float(act["ManHours"].sum()) if not act.empty else 0.0
         recordable = int(inc["Recordable"].sum()) if not inc.empty else 0
@@ -223,8 +236,8 @@ class DataStore:
         env = self.env_compliance(f)
         open_actions = int((acts["Status"] != "Closed").sum()) if not acts.empty else 0
         overdue_actions = int(acts["Overdue"].sum()) if not acts.empty else 0
-
         days_since = self.days_since_last_lti()
+        reports = int(len(evt))
 
         def card(label, value, fmt, status, target=None, sub=""):
             return {"label": label, "value": value, "fmt": fmt,
@@ -250,7 +263,7 @@ class DataStore:
             card("Open Actions", open_actions, "int", "neutral", sub="awaiting close-out"),
             card("Overdue Actions", overdue_actions, "int", zero_best(overdue_actions),
                  sub="past due date"),
-            card("Recordables", recordable, "int", "neutral", sub="MTC + RWC + LTI"),
+            card("Event Reports", reports, "int", "neutral", sub="near miss / hazard / obs"),
             card("Man-Hours", int(manhours), "int", "neutral", sub="exposure (period)"),
         ]
 
@@ -259,7 +272,7 @@ class DataStore:
         if inc.empty:
             return None
         ltis = inc.loc[inc["LTI"] == 1, "Date"]
-        if ltis.empty:
+        if ltis.empty or ltis.isna().all():
             return None
         return int((TODAY - ltis.max()).days)
 
@@ -272,7 +285,6 @@ class DataStore:
 
     # ----- chart series ----------------------------------------------------
     def monthly_trend(self, f):
-        """Respect dept/area filters but keep the full month timeline."""
         inc = self._filter(self.df("incidents"), f, year=False, month=False)
         act = self._filter(self.df("activity"), f, year=False, month=False)
         labels, total, rec, near, trifr, insp = [], [], [], [], [], []
@@ -328,7 +340,7 @@ class DataStore:
                             if row["TrainAssigned"] else 0)
         return {"labels": labels, "data": data, "target": round(C.TARGET_TRAINING * 100)}
 
-    # ----- table builders (return list-of-dicts for templates) -------------
+    # ----- table builders --------------------------------------------------
     def recent_incidents(self, f, n=8):
         inc = self._filter(self.df("incidents"), f)
         if inc.empty:
@@ -348,8 +360,7 @@ class DataStore:
                 "klass": r.Class, "severity": int(r.Severity), "status": r.Status,
                 "owner": r.Owner,
                 "car_due": r.CAR_Due.strftime("%d-%b-%Y") if pd.notna(r.CAR_Due) else "",
-                "overdue": int(r.CAR_Overdue),
-            })
+                "overdue": int(r.CAR_Overdue)})
         return rows
 
     def actions_table(self, f):
@@ -363,8 +374,14 @@ class DataStore:
             "due": r.Due.strftime("%d-%b-%Y") if pd.notna(r.Due) else "",
             "owner": r.Owner, "area": r.Area, "priority": r.Priority,
             "status": r.Status, "overdue": int(r.Overdue),
-            "days_overdue": int(r.DaysOverdue),
-        } for r in acts.itertuples()]
+            "days_overdue": int(r.DaysOverdue)} for r in acts.itertuples()]
+
+    def open_actions_list(self):
+        """For the action-update dropdown."""
+        acts = self.df("actions")
+        if acts.empty:
+            return []
+        return list(acts.loc[acts["Status"] != "Closed", "Action_ID"])
 
     def compliance_table(self):
         df = self.df("compliance")
@@ -375,8 +392,8 @@ class DataStore:
             "frequency": int(r.Frequency_Months),
             "last": r.Last_Completed.strftime("%d-%b-%Y"),
             "due": r.Due_Date.strftime("%d-%b-%Y"),
-            "days": int(r.DaysToDue), "owner": r.Owner, "status": r.Status,
-        } for r in df.itertuples()]
+            "days": int(r.DaysToDue), "owner": r.Owner, "status": r.Status}
+            for r in df.itertuples()]
         counts = df["Status"].value_counts().to_dict()
         pct = round(df["Status"].eq("Compliant").mean() * 100, 1)
         return rows, {"pct": pct, "counts": {k: int(v) for k, v in counts.items()}}
@@ -391,15 +408,14 @@ class DataStore:
             "recycling": round(r.Recycling * 100, 1), "energy": int(r.Energy_MWh),
             "water": int(r.Water_m3), "fuel": int(r.Fuel_L),
             "pm10": r.PM10, "ph": r.pH, "cn": r.WAD_CN,
-            "pm10_ok": int(r.PM10_OK), "ph_ok": int(r.pH_OK), "cn_ok": int(r.CN_OK),
-        } for r in env.itertuples()]
+            "pm10_ok": int(r.PM10_OK), "ph_ok": int(r.pH_OK), "cn_ok": int(r.CN_OK)}
+            for r in env.itertuples()]
         chart = {
             "labels": [r["period"] for r in rows],
             "pm10": [r["pm10"] for r in rows], "pm10_limit": C.PM10_LIMIT,
             "cn": [r["cn"] for r in rows], "cn_limit": C.WADCN_LIMIT,
             "ph": [r["ph"] for r in rows], "ph_min": C.PH_MIN, "ph_max": C.PH_MAX,
-            "energy": [r["energy"] for r in rows], "water": [r["water"] for r in rows],
-        }
+            "energy": [r["energy"] for r in rows], "water": [r["water"] for r in rows]}
         ok = int(env["PM10_OK"].sum() + env["pH_OK"].sum() + env["CN_OK"].sum())
         pct = round(ok / (3 * len(env)) * 100, 1)
         return {"rows": rows, "chart": chart, "pct": pct}
@@ -416,15 +432,39 @@ class DataStore:
                 "company": co, "scope": C.CONTRACTOR_SCOPE.get(co, ""),
                 "manhours": int(mh), "recordables": rec, "ltis": lti,
                 "trifr": round(rec / mh * C.RATE_BASE, 2) if mh else 0,
-                "ltifr": round(lti / mh * C.RATE_BASE, 2) if mh else 0,
-            })
+                "ltifr": round(lti / mh * C.RATE_BASE, 2) if mh else 0})
         rows = [r for r in rows if r["manhours"] > 0] or rows
         chart = {"labels": [r["company"].split(" (")[0] for r in rows],
                  "trifr": [r["trifr"] for r in rows], "target": C.TARGET_TRIFR}
         return {"rows": rows, "chart": chart}
 
+    def events_view(self, f):
+        evt = self._filter(self.df("events"), f)
+        cats = {c: 0 for c in C.EVENT_CATEGORIES}
+        rows = []
+        if not evt.empty:
+            for c, n in evt["Category"].value_counts().items():
+                cats[c] = int(n)
+            evt = evt.sort_values("Date", ascending=False)
+            for r in evt.itertuples():
+                rows.append({
+                    "ref": r.Ref, "category": r.Category,
+                    "date": r.Date.strftime("%d-%b-%Y") if pd.notna(r.Date) else "",
+                    "area": r.Area, "department": r.Department,
+                    "severity": int(r.Severity) if pd.notna(r.Severity) else "",
+                    "description": r.Description, "reporter": r.Reported_By,
+                    "status": r.Status})
+        # monthly trend across timeline
+        ev_all = self._filter(self.df("events"), f, year=False, month=False)
+        labels, series = [], []
+        for key, label in self._timeline():
+            labels.append(label)
+            series.append(int((ev_all["MonthKey"] == key).sum()) if not ev_all.empty else 0)
+        chart = {"cats": {"labels": list(cats.keys()), "data": list(cats.values())},
+                 "trend": {"labels": labels, "data": series}}
+        return {"rows": rows, "counts": cats, "total": len(rows), "chart": chart}
+
     def register(self, key):
-        """Generic table for permits / audits / equipment."""
         df = self.df(key)
         if df.empty:
             return []
@@ -440,7 +480,7 @@ class DataStore:
             out.append(row)
         return out
 
-    # ----- data status -----------------------------------------------------
+    # ----- status / options ------------------------------------------------
     def data_status(self):
         total_rows = sum(len(v) for v in self.frames.values())
         return {
@@ -449,14 +489,23 @@ class DataStore:
             "total_files": sum(1 for s in self.status if s["loaded"]),
             "total_rows": total_rows,
             "data_dir": self.data_dir,
+            "db_path": C.DB_PATH,
         }
 
-    # ----- filter option lists --------------------------------------------
+    def excel_files(self):
+        out = []
+        for key, spec in C.DATASETS.items():
+            p = os.path.join(self.data_dir, spec["file"])
+            exists = os.path.exists(p)
+            out.append({"key": key, "file": spec["file"], "exists": exists,
+                        "modified": dt.datetime.fromtimestamp(os.path.getmtime(p)) if exists else None})
+        return out
+
     def filter_options(self):
         inc = self.df("incidents")
-        years = sorted(inc["Year"].unique().tolist()) if not inc.empty else []
+        years = sorted(inc["Year"].dropna().unique().tolist()) if not inc.empty else []
         return {
-            "years": ["All"] + [str(y) for y in years],
+            "years": ["All"] + [str(int(y)) for y in years],
             "months": ["All"] + ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
             "departments": ["All"] + C.DEPARTMENTS,

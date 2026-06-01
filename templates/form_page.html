@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+{% block subheading %}{{ subtitle }}{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="card form-card">
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {% for field in form if field.name not in ('csrf_token', 'submit') %}
+    <div class="form-row">
+      {{ field.label(class="form-label") }}
+      {{ field(class="form-input") }}
+      {% if field.errors %}<div class="form-err">{{ field.errors | join(', ') }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <div class="form-actions">
+      {{ form.submit(class="btn-refresh") }}
+      <a class="btn-ghost" href="{{ request.referrer or url_for('dashboard') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

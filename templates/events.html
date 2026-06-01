@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Event Reports{% endblock %}
+{% block heading %}Event Reports (Near Miss · Hazard · Observation){% endblock %}
+{% block subheading %}{{ view.total }} report(s) for the current filter — leading indicators captured in the field{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ view.total }}</span><span class="mini-l">Total reports</span></div>
+  {% for cat, n in view.counts.items() %}
+  <div class="mini"><span class="mini-n">{{ n }}</span><span class="mini-l">{{ cat }}</span></div>
+  {% endfor %}
+  <a class="mini mini-cta" href="{{ url_for('event_new') }}"><span class="mini-n">＋</span><span class="mini-l">Report event</span></a>
+</div>
+
+<div class="chart-grid">
+  <div class="card"><h3 class="card-title">Reports by Category</h3><div class="chart-box"><canvas id="eventsCatChart"></canvas></div></div>
+  <div class="card"><h3 class="card-title">Reporting Trend</h3><div class="chart-box"><canvas id="eventsTrendChart"></canvas></div></div>
+</div>
+
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>Ref</th><th>Category</th><th>Date</th><th>Area</th><th>Dept</th>
+      <th>Sev</th><th>Description</th><th>Reported by</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for r in view.rows %}
+      <tr>
+        <td class="mono">{{ r.ref }}</td>
+        <td><span class="pill pill-{{ r.category|lower|replace(' ','-') }}">{{ r.category }}</span></td>
+        <td>{{ r.date }}</td><td>{{ r.area }}</td><td>{{ r.department }}</td>
+        <td><span class="sev sev-{{ r.severity }}">{{ r.severity }}</span></td>
+        <td>{{ r.description }}</td><td>{{ r.reporter }}</td>
+        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="empty">No reports yet — click “Report event” to add the first.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

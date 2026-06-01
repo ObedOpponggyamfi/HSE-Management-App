@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+{% block heading %}Alerts & Escalations{% endblock %}
+{% block subheading %}Overdue actions, expiring permits, compliance due, equipment inspections and high-severity incidents{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ alerts.total }}</span><span class="mini-l">Open alerts</span></div>
+  <div class="mini"><span class="mini-n" style="color:var(--bad)">{{ alerts.counts.high }}</span><span class="mini-l">High</span></div>
+  <div class="mini"><span class="mini-n" style="color:var(--warn)">{{ alerts.counts.medium }}</span><span class="mini-l">Medium</span></div>
+  {% if current_user.can('hse_officer') %}
+  <form method="post" action="{{ url_for('alerts_email') }}" style="align-self:center">
+    <button class="btn-refresh" type="submit" {{ '' if email_ready else 'title=\"Set HSE_SMTP_HOST and HSE_ALERT_RECIPIENTS to enable email\"' }}>
+      ✉ Email digest{{ '' if email_ready else ' (not configured)' }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if alerts.total == 0 %}
+<div class="card"><p class="empty">✔ No open alerts. Everything is within thresholds.</p></div>
+{% else %}
+  {% for category, items in alerts.by_category.items() %}
+  <div class="card">
+    <h3 class="card-title">{{ category }} <small>({{ items|length }})</small></h3>
+    <ul class="alert-list">
+      {% for it in items %}
+      <li class="alert-row alert-{{ it.level }}">
+        <span class="alert-dot"></span>
+        <span class="alert-msg">{{ it.message }}</span>
+        <a class="alert-link" href="{{ it.link }}">view →</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

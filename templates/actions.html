@@ -4,6 +4,12 @@
 {% block subheading %}{{ rows|length }} action(s) — overdue items are highlighted{% endblock %}
 
 {% block content %}
+<div class="page-toolbar">
+  {% if current_user.can('hse_officer') %}
+  <a class="btn-refresh" href="{{ url_for('action_new') }}">＋ New action</a>
+  {% endif %}
+  <a class="btn-ghost" href="{{ url_for('export_table', key='actions') }}">⤓ Export Excel</a>
+</div>
 <div class="mini-stats">
   {% for s in summary.labels %}
   <div class="mini">
@@ -31,7 +37,21 @@
         <td>{{ r.raised }}</td>
         <td>{{ r.due }}</td>
         <td>{{ r.days_overdue if r.overdue else '' }}</td>
-        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+        <td>
+          {% if current_user.can('hse_officer') %}
+          <form method="post" action="{{ url_for('action_update') }}" class="status-form">
+            <input type="hidden" name="action_id" value="{{ r.id }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <select name="status" class="status-select status-{{ r.status|lower|replace(' ','-') }}" onchange="this.form.submit()">
+              {% for s in ['Open','In Progress','Due Soon','Closed'] %}
+              <option value="{{ s }}" {{ 'selected' if r.status == s else '' }}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          {% else %}
+          <span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span>
+          {% endif %}
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="10" class="empty">No actions match the current filter.</td></tr>

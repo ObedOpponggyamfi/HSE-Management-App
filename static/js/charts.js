@@ -84,6 +84,14 @@
         [{ label: "Water (m³)", data: e.water, backgroundColor: TEAL }]);
   }
 
+  /* ---- Event reports ---- */
+  if (D.events) {
+    if ($("eventsCatChart")) doughnut("eventsCatChart", D.events.cats.labels, D.events.cats.data);
+    if ($("eventsTrendChart")) line("eventsTrendChart", D.events.trend.labels, [
+      { label: "Reports", data: D.events.trend.data, borderColor: GREEN,
+        backgroundColor: "rgba(26,122,61,.12)", fill: true, borderWidth: 2.5, tension: .3 }]);
+  }
+
   /* ---- Contractors ---- */
   if (D.contractor && $("contractorChart")) {
     const c = D.contractor;

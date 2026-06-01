@@ -1,16 +1,10 @@
 # HSE Management App (Gold Mine)
 
-A local **Python web app** that consolidates safety data from Excel spreadsheets
-into a live, refreshable **Health, Safety & Environment dashboard** — tailored for
-an Asanko-style gold mine in Ghana.
-
-Drop your safety Excel files into a `data/` folder, run the app, and you get an
-executive dashboard with KPIs, charts, filters and registers. Edit the Excel files
-and click **Refresh** — every number, traffic-light and chart updates. No database,
-no cloud, runs entirely on your PC.
-
-> The repo also ships a separate generator that builds a fully-formula-driven Excel
-> dashboard workbook (see [Bonus](#bonus-standalone-excel-dashboard) below).
+A local **Python web application** for Health, Safety & Environment management,
+tailored for an Asanko-style gold mine in Ghana. It consolidates safety data into
+a database, lets your team **capture incidents / near misses / hazards / actions**
+in the browser, enforces **login + roles**, keeps an **audit trail**, raises
+**alerts**, and produces **reports** — all running on your PC, no cloud required.
 
 ---
 
@@ -19,43 +13,53 @@ no cloud, runs entirely on your PC.
 ```bash
 pip install -r requirements.txt
 python generate_dummy_data.py     # creates sample Excel files in data/ (first run only)
-python app.py                      # starts the app and opens your browser
+python app.py                      # auto-creates the DB, opens your browser
 ```
 
-The app serves at **http://127.0.0.1:5050/** (it auto-opens your browser).
-To use a different port: `set PORT=8080 && python app.py` (Windows) /
-`PORT=8080 python app.py` (macOS/Linux).
+Serves at **http://127.0.0.1:5050/**. **Windows:** just double-click **`run_app.bat`**.
 
-**Windows shortcut:** just double-click **`run_app.bat`** — it finds Python, installs
-dependencies on first run, generates the sample data, and launches the app for you.
+**Sign in** with one of the seeded demo accounts (change these in real use):
 
-*Why 5050 and not 5000?* Port 5000 is often taken by other local apps (e.g. another
-Flask project), so the default avoids the clash. Change it with `PORT` anytime.
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `admin123` | Administrator |
+| `hse` | `hse123` | HSE Officer |
+| `worker` | `worker123` | Worker |
+
+*Port:* set `PORT=8080` to change it (5050 default avoids the common :5000 clash).
 
 ---
 
-## How the workflow works
+## What it does
 
-```
-   data/*.xlsx  ──read & consolidate──►  in-memory analytics  ──►  web dashboard
-        ▲                                      ▲
-   you edit / add rows                    click "Refresh"
-```
+### 1. Data capture (digitalisation)
+- Log **incidents** (flow straight into TRIFR/LTIFR), report **near misses / hazards /
+  observations**, and raise **corrective actions** — all from in-app forms.
+- New records write to the database and appear on the dashboard immediately.
+- Bulk-load is still supported: drop Excel files in `data/` and an admin clicks
+  **Import from Excel**. Any dataset can be **exported back to Excel**.
 
-1. Safety data lives as Excel files in **`data/`** — one file per dataset
-   (incidents, activity log, corrective actions, compliance, environmental,
-   permits, audits, equipment).
-2. The app reads and **consolidates** all of them on startup, derives the fields it
-   needs (Year/Month, recordable & LTI flags, overdue/compliance status, frequency
-   rates …) and computes every KPI and chart.
-3. Edit or append rows in the Excel files (keep the column headers unchanged), then
-   click **⟳ Refresh** in the app — it re-reads the folder and recomputes everything.
-4. The **Data & Refresh** page lists every file, its row count, last-modified time
-   and load status.
+### 2. Login, roles & audit trail
+- Authentication with hashed passwords (Flask-Login).
+- Role hierarchy **Worker → Supervisor → HSE Officer → Manager → Admin**; each
+  action is gated (e.g. workers can report events, HSE officers manage actions,
+  admins manage users).
+- Every create/update/login is written to an **Audit Trail** (who, what, when).
 
-Targets, rate bases and regulatory limits that drive the traffic-lights live in
-**`config.py`** (TRIFR 3.0, LTIFR 0.8, inspection 95 %, training 90 %, PM10 70 µg/m³,
-WAD CN 50 mg/L, pH 6–9 …).
+### 3. Alerts & escalation
+- The **Alerts** page (and the bell badge) surface overdue actions, expiring/expired
+  permits, compliance due/overdue, equipment inspections due, and recent
+  high-severity open incidents.
+- Optional **email digest** — set `HSE_SMTP_HOST` and `HSE_ALERT_RECIPIENTS`
+  (and `HSE_SMTP_USER`/`HSE_SMTP_PASS`) to email it; otherwise it's previewed in-app.
+
+### 4. Dashboards & reports
+- Executive **Dashboard** — 12 KPI cards with traffic-light status (TRIFR, LTIFR,
+  near misses, inspection score, training, env compliance, open/overdue actions,
+  days since last LTI …) plus charts, all driven by **Year / Month / Department /
+  Location** filters.
+- **Report** page — print-ready (Print → Save as PDF) board pack, plus one-click
+  Excel exports.
 
 ---
 
@@ -63,55 +67,62 @@ WAD CN 50 mg/L, pH 6–9 …).
 
 | Page | What it shows |
 |---|---|
-| **Dashboard** | 12 KPI cards with traffic-light status (TRIFR, LTIFR, near misses, inspection score, training, env compliance, open/overdue actions, days since last LTI …) + charts: incident trend, by type, high-risk locations, actions by status, training by department. All driven by the **Year / Month / Department / Location** filters. |
-| **Incident Register** | Full incident table; overdue CARs highlighted; severity & status pills. |
-| **Corrective Actions** | Actions tracker with status summary; overdue items flagged via `TODAY()`. |
-| **Compliance** | Ghana regulatory register (Minerals Commission, EPA Ghana, Factories Inspectorate, ICMC cyanide code, Nuclear Regulatory Authority, Water Resources Commission …) with auto-derived Compliant / Due Soon / Overdue status and overall %. |
-| **Environmental** | PM10 dust, WAD cyanide vs regulatory limits, energy & water trends, monthly table with exceedances flagged. |
-| **Contractors** | Owner-vs-contractor TRIFR comparison (man-hours & recordables consolidated from the spine). |
-| **Registers** | Permit-to-work, audits and safety-critical equipment registers with status. |
-| **Data & Refresh** | File consolidation status + one-click refresh. |
+| **Dashboard** | KPI scorecard + charts (incident trend, by type, high-risk locations, actions by status, training by department), filterable. |
+| **Incident Register** | Incident table; overdue CARs highlighted; **+ Log incident**. |
+| **Event Reports** | Captured near misses / hazards / observations with category & trend charts; **+ Report event**. |
+| **Corrective Actions** | Tracker with inline status change; overdue flagged via `TODAY()`; **+ New action**. |
+| **Compliance** | Ghana regulatory register (Minerals Commission, EPA Ghana, Factories Inspectorate, ICMC cyanide code, Nuclear Regulatory Authority, Water Resources Commission …) with auto-derived status. |
+| **Environmental** | PM10 dust & WAD cyanide vs regulatory limits, energy/water trends, exceedances flagged. |
+| **Contractors** | Owner-vs-contractor TRIFR comparison. |
+| **Registers** | Permits, audits, safety-critical equipment with status. |
+| **Alerts** | Everything needing attention, grouped & escalated; optional email digest. |
+| **Report** | Print/PDF board report + Excel export. |
+| **Data & Refresh** | DB datasets, Excel import (admin), per-dataset export, refresh. |
+| **Admin → Users / Audit Trail** | Manage accounts & roles; view the change log. |
 
 ---
 
-## Project layout
+## Architecture
 
 ```
-app.py                  Flask app (routes, filters, refresh)
-core.py                 consolidation + analytics engine (DataStore)
-config.py               targets, limits, domain lists, data-file registry
-generate_dummy_data.py  writes sample Excel datasets into data/
-data/                   the Excel files the app consolidates  (edit these)
-templates/              Jinja2 pages (dashboard, incidents, … )
-static/                 css, vendored Chart.js (offline), chart JS
-requirements.txt
+data/*.xlsx ──import──►  SQLite DB  ──►  DataStore (pandas analytics)  ──►  Flask + Chart.js UI
+                          ▲   ▲
+              in-app capture   admin re-import / export
 ```
 
-Built with **Flask + pandas + openpyxl**; charts use **Chart.js** (vendored locally,
-so the app works fully offline).
+| File | Role |
+|---|---|
+| `app.py` | Flask routes, auth, role gating, capture, alerts, reports |
+| `core.py` | `DataStore` — reads the DB, derives fields, computes all KPIs/charts |
+| `models.py` | ORM models: `User`, `AuditLog`, `Event` |
+| `importer.py` | Excel→DB import, first-run seeding, insert/update helpers |
+| `forms.py` | Flask-WTF forms (login + capture, CSRF-protected) |
+| `alerts.py` | Alert computation + email digest |
+| `reports.py` | Excel export helpers |
+| `config.py` | Targets, limits, roles, SMTP, domain lists |
+| `templates/`, `static/` | Jinja2 pages; CSS; vendored Chart.js (offline) |
+| `data/` | Sample Excel datasets (edit / replace with your own) |
 
-### Using your own data
-Replace the files in `data/` with your real spreadsheets, keeping the same file
-names, sheet names and column headers (see `config.py → DATASETS` and
-`generate_dummy_data.py` for the expected columns). Then click **Refresh**.
+Built with **Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF, pandas, openpyxl**;
+charts use **Chart.js** vendored locally (works offline). The SQLite DB (`hse.db`)
+is created on first run and is **not** committed — it reseeds from `data/`.
+
+### Configuration (environment variables)
+`PORT`, `HSE_SECRET_KEY`, `HSE_DATABASE_URI`, `HSE_ADMIN_PASSWORD`,
+`HSE_SMTP_HOST` / `HSE_SMTP_PORT` / `HSE_SMTP_USER` / `HSE_SMTP_PASS` /
+`HSE_SMTP_FROM` / `HSE_ALERT_RECIPIENTS`.
 
 ---
 
 ## Bonus: standalone Excel dashboard
-
 `generate_hse_dashboard.py` builds a single, fully **formula-driven** `.xlsx`
-workbook (live SUMPRODUCT/COUNTIF KPIs, conditional-format traffic lights, charts,
-data-validation dropdowns, Excel Tables) — useful if you want the dashboard *inside*
-Excel rather than the web app. Validate it with `python verify_workbook.py`.
-
-```bash
-python generate_hse_dashboard.py   # -> Asanko_HSE_Management_Dashboard.xlsx
-```
+workbook (live SUMPRODUCT/COUNTIF KPIs, conditional formatting, charts, data
+validation, Excel Tables). Validate it with `python verify_workbook.py`.
 
 ---
 
-## Notes
-- Sample data uses a fixed seed and is anchored to today's date, so overdue /
-  days-since-LTI logic is meaningful the moment you run it.
-- This is a local development server; for multi-user deployment put it behind a
-  production WSGI server (gunicorn/waitress) and a real datastore.
+## Production notes
+This ships with Flask's development server for convenience. For real multi-user
+deployment, serve with **waitress** (`waitress-serve --port=8080 app:app`) behind
+HTTPS, set a strong `HSE_SECRET_KEY`, change the seeded passwords, and back up
+`hse.db` (or point `HSE_DATABASE_URI` at PostgreSQL).

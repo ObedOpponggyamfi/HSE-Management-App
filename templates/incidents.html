@@ -4,6 +4,12 @@
 {% block subheading %}{{ rows|length }} incident(s) for the current filter{% endblock %}
 
 {% block content %}
+<div class="page-toolbar">
+  {% if current_user.can('supervisor') %}
+  <a class="btn-refresh" href="{{ url_for('incident_new') }}">＋ Log incident</a>
+  {% endif %}
+  <a class="btn-ghost" href="{{ url_for('export_table', key='incidents') }}">⤓ Export Excel</a>
+</div>
 <div class="card">
   <table class="data-table sortable">
     <thead><tr>
