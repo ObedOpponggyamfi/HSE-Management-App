@@ -5,6 +5,9 @@ tailored for an Asanko-style gold mine in Ghana. It consolidates safety data int
 a database, lets your team **capture incidents / near misses / hazards / actions**
 in the browser, enforces **login + roles**, keeps an **audit trail**, raises
 **alerts**, and produces **reports** — all running on your PC, no cloud required.
+It also includes industry-standard modules: rolling 12-month frequency rates, a
+training & competency matrix with licence expiry, incident root-cause
+investigations, and GISTM tailings monitoring.
 
 ---
 
@@ -61,6 +64,12 @@ Serves at **http://127.0.0.1:5050/**. **Windows:** just double-click **`run_app.
 - **Report** page — print-ready (Print → Save as PDF) board pack, plus one-click
   Excel exports.
 
+### 5. Industry modules
+- **Frequency rates** — rolling 12-month TRIFR / LTIFR / AIFR vs targets.
+- **Training & competency** — certificate / statutory-licence / medical expiry tracking.
+- **Investigations / RCA** — HiPo classification + 5-Whys / ICAM root cause, linked to incidents.
+- **Tailings (GISTM)** — dam-safety inspections + piezometer monitoring vs thresholds.
+
 ---
 
 ## Pages
@@ -68,11 +77,15 @@ Serves at **http://127.0.0.1:5050/**. **Windows:** just double-click **`run_app.
 | Page | What it shows |
 |---|---|
 | **Dashboard** | KPI scorecard + charts (incident trend, by type, high-risk locations, actions by status, training by department), filterable. |
+| **Frequency Rates** | Rolling 12-month TRIFR / LTIFR / AIFR vs targets, with trend chart and traffic-light cards. |
 | **Incident Register** | Incident table; overdue CARs highlighted; **+ Log incident**. |
 | **Event Reports** | Captured near misses / hazards / observations with category & trend charts; **+ Report event**. |
 | **Corrective Actions** | Tracker with inline status change; overdue flagged via `TODAY()`; **+ New action**. |
+| **Training & Competency** | Competency matrix with certificate / statutory-licence / medical expiry (Valid / Expiring / Expired); currency by department. |
+| **Investigations / RCA** | Incident root-cause workflow: HiPo classification, 5-Whys / ICAM, linked to the register. |
 | **Compliance** | Ghana regulatory register (Minerals Commission, EPA Ghana, Factories Inspectorate, ICMC cyanide code, Nuclear Regulatory Authority, Water Resources Commission …) with auto-derived status. |
 | **Environmental** | PM10 dust & WAD cyanide vs regulatory limits, energy/water trends, exceedances flagged. |
+| **Tailings (GISTM)** | TSF dam-safety inspections, freeboard, and piezometer phreatic readings vs thresholds. |
 | **Contractors** | Owner-vs-contractor TRIFR comparison. |
 | **Registers** | Permits, audits, safety-critical equipment with status. |
 | **Alerts** | Everything needing attention, grouped & escalated; optional email digest. |
@@ -94,14 +107,15 @@ data/*.xlsx ──import──►  SQLite DB  ──►  DataStore (pandas analy
 |---|---|
 | `app.py` | Flask routes, auth, role gating, capture, alerts, reports |
 | `core.py` | `DataStore` — reads the DB, derives fields, computes all KPIs/charts |
-| `models.py` | ORM models: `User`, `AuditLog`, `Event` |
-| `importer.py` | Excel→DB import, first-run seeding, insert/update helpers |
+| `models.py` | ORM models: `User`, `AuditLog`, `Event`, `ImportRun`, `Investigation` |
+| `importer.py` | Validated Excel→DB import (audit + rejected rows + real-workbook profile), seeding, write helpers |
 | `forms.py` | Flask-WTF forms (login + capture, CSRF-protected) |
 | `alerts.py` | Alert computation + email digest |
 | `reports.py` | Excel export helpers |
 | `config.py` | Targets, limits, roles, SMTP, domain lists |
 | `templates/`, `static/` | Jinja2 pages; CSS; vendored Chart.js (offline) |
 | `data/` | Sample Excel datasets (edit / replace with your own) |
+| `tests/`, `.github/` | pytest suite + GitHub Actions CI |
 
 Built with **Flask, Flask-SQLAlchemy, Flask-Login, Flask-WTF, pandas, openpyxl**;
 charts use **Chart.js** vendored locally (works offline). The SQLite DB (`hse.db`)
