@@ -212,6 +212,14 @@ def rates():
     return render_template("rates.html", roll=roll, charts={"rates": roll})
 
 
+@app.route("/training")
+@login_required
+def training():
+    f = get_filters()
+    view = store.competency_view(f)
+    return render_template("training.html", view=view, charts={"comp": view["chart"]})
+
+
 @app.route("/registers")
 @login_required
 def registers():

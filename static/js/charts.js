@@ -114,4 +114,11 @@
       { label: "AIFR (12-mo)", data: r.aifr, borderColor: GOLD, borderWidth: 2, tension: .3 },
       limitLine(r.labels.length, r.target_trifr, "TRIFR target") ]);
   }
+
+  /* ---- Training & competency ---- */
+  if (D.comp) {
+    if ($("compDeptChart")) bar("compDeptChart", D.comp.dept.labels,
+        [{ label: "% valid", data: D.comp.dept.data, backgroundColor: NAVY }]);
+    if ($("compTypeChart")) doughnut("compTypeChart", D.comp.type.labels, D.comp.type.data);
+  }
 })();

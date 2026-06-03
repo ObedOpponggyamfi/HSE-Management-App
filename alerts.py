@@ -65,6 +65,17 @@ def compute_alerts(store):
             elif d <= C.ALERT_EQUIPMENT_DAYS:
                 add("medium", "Equipment Due", f"{r.Asset} inspection due in {d} days", "/registers", r.Asset)
 
+    # ---- competency / licence expiry (critical types only) ----
+    comp = store.df("competency")
+    if not comp.empty:
+        crit = comp[comp["Type"].isin(["Statutory Licence", "Medical"])]
+        for r in crit.itertuples():
+            d = int(r.DaysToExpiry) if pd.notna(r.DaysToExpiry) else -1
+            if r.Status == "Expired":
+                add("high", "Competency Expired", f"{r.Person}: {r.Competency} has expired", "/training", r.Person)
+            elif r.Status == "Expiring":
+                add("medium", "Competency Expiring", f"{r.Person}: {r.Competency} expires in {d} days", "/training", r.Person)
+
     # ---- recent high-severity open incidents ----
     inc = store.df("incidents")
     if not inc.empty:

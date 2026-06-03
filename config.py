@@ -112,6 +112,7 @@ DATASETS = {
     "permits":       {"file": "permits.xlsx",             "sheet": "Permits"},
     "audits":        {"file": "audits.xlsx",              "sheet": "Audits"},
     "equipment":     {"file": "equipment.xlsx",           "sheet": "Equipment"},
+    "competency":    {"file": "competency.xlsx",          "sheet": "Competency"},
 }
 
 # ==========================================================================

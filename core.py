@@ -174,6 +174,13 @@ class DataStore:
             df["Status"] = df["DaysToDue"].apply(
                 lambda d: "Overdue" if d < 0 else ("Due Soon" if d <= 30 else "Compliant"))
 
+        elif key == "competency":
+            for c in ("Completed", "Expiry"):
+                df[c] = pd.to_datetime(df[c], errors="coerce")
+            df["DaysToExpiry"] = (df["Expiry"] - TODAY).dt.days
+            df["Status"] = df["DaysToExpiry"].apply(
+                lambda d: "Expired" if pd.isna(d) or d < 0 else ("Expiring" if d <= 60 else "Valid"))
+
         elif key == "events":
             df = df.rename(columns={
                 "ref": "Ref", "category": "Category", "date": "Date", "area": "Area",
@@ -494,6 +501,37 @@ class DataStore:
         chart = {"cats": {"labels": list(cats.keys()), "data": list(cats.values())},
                  "trend": {"labels": labels, "data": series}}
         return {"rows": rows, "counts": cats, "total": len(rows), "chart": chart}
+
+    def competency_view(self, f):
+        df = self._filter(self.df("competency"), f, year=False, month=False, area=False)
+        if df.empty:
+            return {"total": 0, "valid": 0, "expiring": 0, "expired": 0, "pct": 0, "rows": [],
+                    "chart": {"dept": {"labels": [], "data": []}, "type": {"labels": [], "data": []}}}
+        total = len(df)
+        valid = int((df["Status"] == "Valid").sum())
+        expiring = int((df["Status"] == "Expiring").sum())
+        expired = int((df["Status"] == "Expired").sum())
+        dept_labels, dept_data = [], []
+        for dept, g in df.groupby("Department"):
+            dept_labels.append(dept)
+            dept_data.append(round((g["Status"] == "Valid").mean() * 100, 1))
+        type_labels, type_data = [], []
+        for t, g in df.groupby("Type"):
+            type_labels.append(t)
+            type_data.append(len(g))
+        rows = []
+        for r in df.sort_values("DaysToExpiry").itertuples():
+            rows.append({
+                "person": r.Person, "department": r.Department, "competency": r.Competency,
+                "type": r.Type,
+                "completed": r.Completed.strftime("%d-%b-%Y") if pd.notna(r.Completed) else "",
+                "expiry": r.Expiry.strftime("%d-%b-%Y") if pd.notna(r.Expiry) else "",
+                "days": int(r.DaysToExpiry) if pd.notna(r.DaysToExpiry) else "",
+                "status": r.Status})
+        return {"total": total, "valid": valid, "expiring": expiring, "expired": expired,
+                "pct": round(valid / total * 100, 1), "rows": rows,
+                "chart": {"dept": {"labels": dept_labels, "data": dept_data},
+                          "type": {"labels": type_labels, "data": type_data}}}
 
     def register(self, key):
         df = self.df(key)

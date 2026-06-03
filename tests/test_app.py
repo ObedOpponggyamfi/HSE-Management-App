@@ -38,7 +38,7 @@ def test_unauthenticated_redirects(client):
 
 def test_all_pages_load_for_admin(client):
     login(client)
-    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/compliance",
+    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/training", "/compliance",
                  "/environmental", "/contractors", "/registers", "/alerts",
                  "/report", "/data", "/admin/users", "/admin/audit"]:
         assert client.get(path).status_code == 200, path

@@ -223,10 +223,39 @@ def generate(anchor: dt.date | None = None) -> dict:
         ("Ambulance 1", "Medical", 30), ("Tailings Piezometers", "Geotech", 75),
         ("AED Units", "Medical", 50), ("Spill Response Trailer", "Environmental", 100)], start=1)])
 
+    # ---- Competency / training records (with certificate & licence expiry) --
+    names = ["K. Mensah", "A. Owusu", "J. Boateng", "E. Asante", "P. Annan", "Y. Darko",
+             "S. Addo", "M. Quaye", "F. Agyeman", "D. Tetteh", "G. Appiah", "L. Nyarko",
+             "B. Osei", "R. Adjei", "T. Kufuor", "N. Amoah", "C. Baptista", "H. Acheampong",
+             "I. Sarpong", "V. Ofori", "W. Danso", "O. Frimpong", "Q. Bediako", "Z. Gyasi",
+             "U. Mensah", "X. Antwi", "K. Boadu", "A. Dapaah", "J. Yeboah", "E. Twum",
+             "P. Asomani", "Y. Bonsu", "S. Larbi", "M. Opoku", "F. Wiredu", "D. Agyapong",
+             "G. Owusu", "L. Asare", "B. Nartey", "R. Kpodo"]
+    comp_defs = [
+        ("Site Induction", "Induction", 12), ("Blasting Licence", "Statutory Licence", 24),
+        ("Crane Operator Licence", "Statutory Licence", 24), ("Forklift Licence", "Statutory Licence", 36),
+        ("Dangerous Goods Licence", "Statutory Licence", 24), ("First Aid Certificate", "Statutory Licence", 36),
+        ("Periodic Medical", "Medical", 12), ("Audiometric Test", "Medical", 12),
+        ("Working at Height", "Skills", 24), ("Confined Space Entry", "Skills", 12),
+        ("Cyanide Handling", "Skills", 12), ("Defensive Driving", "Skills", 24),
+        ("Fire Warden", "Skills", 24),
+    ]
+    comp_rows = []
+    for person in names:
+        dept = str(rng.choice(C.DEPARTMENTS))
+        idx = rng.choice(range(1, len(comp_defs)), size=int(rng.integers(3, 6)), replace=False)
+        for comp, ctype, valid_m in [comp_defs[0]] + [comp_defs[i] for i in idx]:
+            completed = today - dt.timedelta(days=int(rng.integers(30, valid_m * 30 + 150)))
+            comp_rows.append({
+                "Person": person, "Department": dept, "Competency": comp, "Type": ctype,
+                "Completed": completed, "Expiry": completed + dt.timedelta(days=int(valid_m * 30))})
+    competency = pd.DataFrame(comp_rows)
+
     return {
         "incidents": incidents, "activity": activity, "actions": actions,
         "compliance": compliance, "environmental": environmental,
         "permits": permits, "audits": audits, "equipment": equipment,
+        "competency": competency,
     }
 
 

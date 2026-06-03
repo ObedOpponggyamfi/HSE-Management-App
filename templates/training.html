@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Training & Competency{% endblock %}
+{% block heading %}Training & Competency Matrix{% endblock %}
+{% block subheading %}Certificates, statutory licences and medicals with expiry tracking{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ view.pct }}%</span><span class="mini-l">Currently valid</span></div>
+  <div class="mini"><span class="mini-n">{{ view.valid }}</span><span class="mini-l">Valid</span></div>
+  <div class="mini"><span class="mini-n" style="color:var(--warn)">{{ view.expiring }}</span><span class="mini-l">Expiring ≤60d</span></div>
+  <div class="mini"><span class="mini-n" style="color:var(--bad)">{{ view.expired }}</span><span class="mini-l">Expired</span></div>
+  <div class="mini"><span class="mini-n">{{ view.total }}</span><span class="mini-l">Records</span></div>
+</div>
+
+<div class="chart-grid">
+  <div class="card"><h3 class="card-title">Currency by Department (% valid)</h3><div class="chart-box"><canvas id="compDeptChart"></canvas></div></div>
+  <div class="card"><h3 class="card-title">Records by Type</h3><div class="chart-box"><canvas id="compTypeChart"></canvas></div></div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Competency register <small>(soonest to expire first)</small></h3>
+  <table class="data-table sortable">
+    <thead><tr><th>Person</th><th>Department</th><th>Competency</th><th>Type</th>
+      <th>Completed</th><th>Expiry</th><th>Days to expiry</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for r in view.rows %}
+      <tr class="{{ 'row-alert' if r.status == 'Expired' else '' }}">
+        <td>{{ r.person }}</td><td>{{ r.department }}</td><td>{{ r.competency }}</td>
+        <td>{{ r.type }}</td><td>{{ r.completed }}</td><td>{{ r.expiry }}</td>
+        <td>{{ r.days }}</td>
+        <td><span class="pill pill-{{ r.status|lower }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty">No competency records. Add competency.xlsx to data/ and import.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

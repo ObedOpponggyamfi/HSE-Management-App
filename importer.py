@@ -31,6 +31,7 @@ REQUIRED = {
     "incidents": ["ID", "Date"], "activity": ["Period", "Area"],
     "actions": ["Action_ID"], "compliance": ["Item"], "environmental": ["Period"],
     "permits": ["Permit"], "audits": ["Audit"], "equipment": ["Asset"],
+    "competency": ["Person", "Competency"],
 }
 
 
