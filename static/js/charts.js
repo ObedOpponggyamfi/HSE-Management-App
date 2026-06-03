@@ -121,4 +121,17 @@
         [{ label: "% valid", data: D.comp.dept.data, backgroundColor: NAVY }]);
     if ($("compTypeChart")) doughnut("compTypeChart", D.comp.type.labels, D.comp.type.data);
   }
+
+  /* ---- Tailings (GISTM) ---- */
+  if (D.tailings && $("tailingsChart")) {
+    const t = D.tailings;
+    const ds = [
+      { label: "Avg phreatic (m)", data: t.phreatic, borderColor: NAVY,
+        backgroundColor: "rgba(20,51,82,.10)", fill: true, borderWidth: 2.5, tension: .3 },
+      limitLine(t.labels.length, t.threshold, "Threshold") ];
+    if (t.freeboard && t.freeboard.some(v => v != null))
+      ds.push({ label: "Min freeboard (m)", data: t.freeboard, borderColor: GOLD,
+                borderWidth: 2, tension: .3 });
+    line("tailingsChart", t.labels, ds);
+  }
 })();

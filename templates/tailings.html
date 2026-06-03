@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Tailings (GISTM){% endblock %}
+{% block heading %}Tailings Storage Facility — GISTM{% endblock %}
+{% block subheading %}Dam-safety inspections, freeboard and piezometer (phreatic surface) monitoring vs thresholds{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ view.kpi.last_status }}</span><span class="mini-l">Latest inspection</span></div>
+  <div class="mini"><span class="mini-n">{{ view.kpi.days_since if view.kpi.days_since is not none else '—' }}</span><span class="mini-l">Days since inspection</span></div>
+  <div class="mini"><span class="mini-n" style="color:{{ 'var(--bad)' if view.kpi.exceedances else 'var(--good)' }}">{{ view.kpi.exceedances }}</span><span class="mini-l">Piezo exceedances</span></div>
+  <div class="mini"><span class="mini-n">{{ view.kpi.min_freeboard if view.kpi.min_freeboard is not none else '—' }}</span><span class="mini-l">Min freeboard (m)</span></div>
+  <div class="mini"><span class="mini-n">{{ view.kpi.facilities }}</span><span class="mini-l">Facilities</span></div>
+</div>
+
+<div class="card span-2">
+  <h3 class="card-title">Phreatic surface (avg piezometer reading) vs threshold</h3>
+  <div class="chart-box" style="height:320px"><canvas id="tailingsChart"></canvas></div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Latest piezometer readings</h3>
+  <table class="data-table sortable">
+    <thead><tr><th>TSF</th><th>Piezometer</th><th>Date</th><th>Reading (m)</th><th>Threshold (m)</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for r in view.piez_rows %}
+      <tr class="{{ 'row-alert' if r.status == 'Exceedance' else '' }}">
+        <td>{{ r.tsf }}</td><td class="mono">{{ r.piezo }}</td><td>{{ r.date }}</td>
+        <td class="{{ 'cell-bad' if r.status == 'Exceedance' else '' }}">{{ r.reading }}</td>
+        <td>{{ r.threshold }}</td>
+        <td><span class="pill pill-{{ r.status|lower }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}<tr><td colspan="6" class="empty">No piezometer data.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Dam inspection register</h3>
+  <table class="data-table sortable">
+    <thead><tr><th>TSF</th><th>Date</th><th>Inspector</th><th>Freeboard (m)</th><th>Findings</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for r in view.insp_rows %}
+      <tr class="{{ 'row-alert' if r.status in ['Critical', 'Action Required'] else '' }}">
+        <td>{{ r.tsf }}</td><td>{{ r.date }}</td><td>{{ r.inspector }}</td>
+        <td>{{ r.freeboard }}</td><td>{{ r.findings }}</td>
+        <td><span class="pill pill-{{ r.status|lower|replace(' ','-') }}">{{ r.status }}</span></td>
+      </tr>
+      {% else %}<tr><td colspan="6" class="empty">No inspections.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -251,11 +251,40 @@ def generate(anchor: dt.date | None = None) -> dict:
                 "Completed": completed, "Expiry": completed + dt.timedelta(days=int(valid_m * 30))})
     competency = pd.DataFrame(comp_rows)
 
+    # ---- GISTM tailings: dam inspections + piezometer (phreatic) readings ---
+    tsfs = ["Main TSF", "Esaase TSF"]
+    insp_rows = []
+    for tsf in tsfs:
+        for mo in months[-18:]:
+            insp_rows.append({
+                "TSF": tsf, "Date": mo["first"] + dt.timedelta(days=int(rng.integers(0, 20))),
+                "Inspector": str(rng.choice(C.OWNERS)),
+                "Freeboard_m": round(float(rng.uniform(1.2, 2.6)), 2),
+                "Status": str(rng.choice(["Satisfactory", "Action Required", "Critical"],
+                                         p=[0.85, 0.13, 0.02])),
+                "Findings": str(rng.choice(["No issues noted", "Minor erosion on downstream face",
+                    "Vegetation on embankment", "Seepage observed at toe",
+                    "Instrument cover damaged", "Spillway clear"]))})
+    tailings_inspections = pd.DataFrame(insp_rows)
+
+    piez_rows = []
+    for tsf in tsfs:
+        for p in range(1, 5):
+            thr = round(float(rng.uniform(2.8, 3.4)), 2)
+            for mo in months[-12:]:
+                reading = round(float(rng.normal(thr * rng.uniform(0.7, 0.92), 0.15)), 2)
+                piez_rows.append({"TSF": tsf, "Piezo_ID": f"{tsf.split()[0]}-P{p}",
+                                  "Date": mo["first"], "Reading_m": reading, "Threshold_m": thr})
+    for j in rng.choice(range(len(piez_rows)), size=min(3, len(piez_rows)), replace=False):
+        piez_rows[j]["Reading_m"] = round(piez_rows[j]["Threshold_m"] + float(rng.uniform(0.05, 0.3)), 2)
+    piezometers = pd.DataFrame(piez_rows)
+
     return {
         "incidents": incidents, "activity": activity, "actions": actions,
         "compliance": compliance, "environmental": environmental,
         "permits": permits, "audits": audits, "equipment": equipment,
-        "competency": competency,
+        "competency": competency, "tailings_inspections": tailings_inspections,
+        "piezometers": piezometers,
     }
 
 

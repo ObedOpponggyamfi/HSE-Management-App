@@ -261,6 +261,13 @@ def investigation_new():
                            subtitle="Classify HiPo, capture 5-Whys / ICAM root cause, link to the incident.")
 
 
+@app.route("/tailings")
+@login_required
+def tailings():
+    view = store.tailings_view()
+    return render_template("tailings.html", view=view, charts={"tailings": view["chart"]})
+
+
 @app.route("/registers")
 @login_required
 def registers():

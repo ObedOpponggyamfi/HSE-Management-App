@@ -76,6 +76,23 @@ def compute_alerts(store):
             elif r.Status == "Expiring":
                 add("medium", "Competency Expiring", f"{r.Person}: {r.Competency} expires in {d} days", "/training", r.Person)
 
+    # ---- tailings (GISTM): piezometer exceedance + inspection status ----
+    piez = store.df("piezometers")
+    if not piez.empty:
+        for r in piez[piez["Exceedance"] == 1].itertuples():
+            add("high", "Piezometer Exceedance",
+                f"{r.Piezo_ID} ({r.TSF}): {r.Reading_m} m exceeds threshold {r.Threshold_m} m",
+                "/tailings", r.Piezo_ID)
+    insp = store.df("tailings_inspections")
+    if not insp.empty:
+        for r in insp.sort_values("Date").groupby("TSF").tail(1).itertuples():
+            d = int(r.DaysSince) if pd.notna(r.DaysSince) else 0
+            if d > 30:
+                add("medium", "TSF Inspection Due", f"{r.TSF}: last inspection {d} days ago", "/tailings", r.TSF)
+            if r.Status in ("Critical", "Action Required"):
+                add("high" if r.Status == "Critical" else "medium", "TSF Dam Safety",
+                    f"{r.TSF}: {r.Status} — {r.Findings}", "/tailings", r.TSF)
+
     # ---- recent high-severity open incidents ----
     inc = store.df("incidents")
     if not inc.empty:

@@ -174,6 +174,19 @@ class DataStore:
             df["Status"] = df["DaysToDue"].apply(
                 lambda d: "Overdue" if d < 0 else ("Due Soon" if d <= 30 else "Compliant"))
 
+        elif key == "tailings_inspections":
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+            df["MonthKey"] = df["Date"].dt.strftime("%b-%y")
+            df["DaysSince"] = (TODAY - df["Date"]).dt.days
+
+        elif key == "piezometers":
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+            df["MonthKey"] = df["Date"].dt.strftime("%Y-%m")
+            df["Exceedance"] = (df["Reading_m"] > df["Threshold_m"]).astype(int)
+            df["Status"] = df.apply(
+                lambda r: "Exceedance" if r["Reading_m"] > r["Threshold_m"]
+                else ("Elevated" if r["Reading_m"] > 0.9 * r["Threshold_m"] else "Normal"), axis=1)
+
         elif key == "competency":
             for c in ("Completed", "Expiry"):
                 df[c] = pd.to_datetime(df[c], errors="coerce")
@@ -532,6 +545,43 @@ class DataStore:
                 "pct": round(valid / total * 100, 1), "rows": rows,
                 "chart": {"dept": {"labels": dept_labels, "data": dept_data},
                           "type": {"labels": type_labels, "data": type_data}}}
+
+    def tailings_view(self):
+        insp = self.df("tailings_inspections")
+        piez = self.df("piezometers")
+        kpi = {"last_status": "—", "days_since": None, "exceedances": 0,
+               "min_freeboard": None, "facilities": 0}
+        insp_rows, piez_rows = [], []
+        chart = {"labels": [], "phreatic": [], "threshold": 0, "freeboard": []}
+        if not insp.empty:
+            insp = insp.sort_values("Date", ascending=False)
+            latest = insp.iloc[0]
+            kpi["last_status"] = latest["Status"]
+            kpi["days_since"] = int(latest["DaysSince"]) if pd.notna(latest["DaysSince"]) else None
+            kpi["min_freeboard"] = round(float(insp["Freeboard_m"].min()), 2)
+            kpi["facilities"] = int(insp["TSF"].nunique())
+            for r in insp.head(40).itertuples():
+                insp_rows.append({"tsf": r.TSF,
+                    "date": r.Date.strftime("%d-%b-%Y") if pd.notna(r.Date) else "",
+                    "inspector": r.Inspector, "freeboard": r.Freeboard_m,
+                    "status": r.Status, "findings": r.Findings})
+        if not piez.empty:
+            kpi["exceedances"] = int(piez["Exceedance"].sum())
+            chart["threshold"] = round(float(piez["Threshold_m"].mean()), 2)
+            for k in sorted(piez["MonthKey"].dropna().unique()):
+                sub = piez[piez["MonthKey"] == k]
+                chart["labels"].append(pd.to_datetime(k + "-01").strftime("%b-%y"))
+                chart["phreatic"].append(round(float(sub["Reading_m"].mean()), 2))
+            for pid, g in piez.sort_values("Date").groupby("Piezo_ID"):
+                last = g.iloc[-1]
+                piez_rows.append({"tsf": last["TSF"], "piezo": pid,
+                    "date": last["Date"].strftime("%d-%b-%Y") if pd.notna(last["Date"]) else "",
+                    "reading": last["Reading_m"], "threshold": last["Threshold_m"],
+                    "status": last["Status"]})
+        if not insp.empty and chart["labels"]:
+            fb = insp.groupby(insp["Date"].dt.strftime("%b-%y"))["Freeboard_m"].min().to_dict()
+            chart["freeboard"] = [fb.get(lbl) for lbl in chart["labels"]]
+        return {"kpi": kpi, "insp_rows": insp_rows, "piez_rows": piez_rows, "chart": chart}
 
     def register(self, key):
         df = self.df(key)

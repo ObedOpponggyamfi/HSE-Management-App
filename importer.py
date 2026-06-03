@@ -32,6 +32,7 @@ REQUIRED = {
     "actions": ["Action_ID"], "compliance": ["Item"], "environmental": ["Period"],
     "permits": ["Permit"], "audits": ["Audit"], "equipment": ["Asset"],
     "competency": ["Person", "Competency"],
+    "tailings_inspections": ["TSF", "Date"], "piezometers": ["TSF", "Date"],
 }
 
 
