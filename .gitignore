@@ -12,7 +12,13 @@ env/
 
 # Runtime database (recreated on first run from data/*.xlsx)
 *.db
+*.sqlite
 hse.db
+instance/
+.pytest_cache/
+
+# Real/operational incident workbook (keep private; not for the public repo)
+data/incidents.xlsx
 
 # Editor / tooling
 .omc/

@@ -9,7 +9,8 @@
   <div class="data-head">
     <div>
       <div class="data-dir">🗄 {{ status.db_path }}</div>
-      <div class="foot-dim">Last loaded {{ status.loaded_at }} · {{ status.total_files }} datasets · {{ status.total_rows }} rows</div>
+      <div class="foot-dim">Last loaded {{ status.loaded_at }} · {{ status.total_files }} datasets ·
+        {{ status.total_rows }} rows · site <code>{{ status.site_id }}</code></div>
     </div>
     <div class="topbar-actions">
       <a class="btn-ghost" href="{{ url_for('export_table', key='all') }}">⤓ Export all (Excel)</a>
@@ -25,13 +26,18 @@
     </div>
   </div>
 
-  <table class="data-table">
-    <thead><tr><th>Dataset (DB table)</th><th>Rows</th><th>Status</th><th>Export</th></tr></thead>
+  <table class="data-table sortable">
+    <thead><tr><th>Dataset (DB table)</th><th>Rows</th><th>Rejected</th><th>Import ID</th>
+      <th>Last import</th><th>Status</th><th>Export</th></tr></thead>
     <tbody>
       {% for s in status.files %}
-      <tr>
-        <td class="mono">{{ s.key }}</td>
+      <tr class="{{ 'row-alert' if s.rejected else '' }}">
+        <td class="mono">{{ s.key }}{% if s.profile and s.profile != 'standard' %}
+          <span class="pill pill-role">{{ s.profile }}</span>{% endif %}</td>
         <td>{{ s.rows }}</td>
+        <td>{{ s.rejected }}</td>
+        <td class="mono">{{ s.import_id or '—' }}</td>
+        <td>{{ s.modified.strftime('%d-%b %H:%M') if s.modified else '—' }}</td>
         <td>{% if s.loaded %}<span class="pill pill-compliant">loaded</span>
             {% else %}<span class="pill pill-due-soon">{{ s.error or 'empty' }}</span>{% endif %}</td>
         <td><a class="mono" href="{{ url_for('export_table', key=s.key) }}">⤓ xlsx</a></td>

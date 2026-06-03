@@ -19,6 +19,10 @@ import config as C
 from extensions import db, login_manager
 
 
+def _utcnow():
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
@@ -28,7 +32,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255))
     role = db.Column(db.String(20), default="worker")
     active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     def set_password(self, pw):
         self.password_hash = generate_password_hash(pw)
@@ -57,7 +61,7 @@ def load_user(user_id):
 class AuditLog(db.Model):
     __tablename__ = "audit_log"
     id = db.Column(db.Integer, primary_key=True)
-    ts = db.Column(db.DateTime, default=dt.datetime.utcnow, index=True)
+    ts = db.Column(db.DateTime, default=_utcnow, index=True)
     username = db.Column(db.String(80))
     action = db.Column(db.String(40))        # create / update / login / import ...
     entity = db.Column(db.String(40))        # incident / action / event / user ...
@@ -77,4 +81,18 @@ class Event(db.Model):
     description = db.Column(db.Text)
     reported_by = db.Column(db.String(80))
     status = db.Column(db.String(20), default="Open")
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
+
+
+class ImportRun(db.Model):
+    """Audit record of each spreadsheet import (rows seen / accepted / rejected)."""
+    __tablename__ = "import_runs"
+    id = db.Column(db.Integer, primary_key=True)
+    ts = db.Column(db.DateTime, default=_utcnow, index=True)
+    dataset = db.Column(db.String(40), index=True)
+    source_file = db.Column(db.String(260))
+    profile = db.Column(db.String(60), default="standard")
+    rows_seen = db.Column(db.Integer, default=0)
+    rows_accepted = db.Column(db.Integer, default=0)
+    rows_rejected = db.Column(db.Integer, default=0)
+    errors = db.Column(db.Text, default="[]")

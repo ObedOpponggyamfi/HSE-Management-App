@@ -482,14 +482,33 @@ class DataStore:
 
     # ----- status / options ------------------------------------------------
     def data_status(self):
+        try:
+            from importer import latest_import_runs
+            runs = latest_import_runs()
+        except Exception:
+            runs = {}
+        files = []
+        for s in self.status:
+            key = s["key"]
+            spec = C.DATASETS.get(key)
+            run = runs.get(key)
+            files.append({
+                "key": key, "file": spec["file"] if spec else "(in-app)",
+                "rows": s["rows"], "loaded": s["loaded"], "error": s.get("error"),
+                "rejected": run.rows_rejected if run else 0,
+                "import_id": run.id if run else None,
+                "profile": run.profile if run else None,
+                "modified": run.ts if run else None,
+            })
         total_rows = sum(len(v) for v in self.frames.values())
         return {
-            "files": self.status,
+            "files": files,
             "loaded_at": self.loaded_at.strftime("%d-%b-%Y %H:%M:%S") if self.loaded_at else "-",
-            "total_files": sum(1 for s in self.status if s["loaded"]),
+            "total_files": sum(1 for f in files if f["loaded"]),
             "total_rows": total_rows,
             "data_dir": self.data_dir,
             "db_path": C.DB_PATH,
+            "site_id": C.SITE_ID,
         }
 
     def excel_files(self):
@@ -503,11 +522,18 @@ class DataStore:
 
     def filter_options(self):
         inc = self.df("incidents")
+        act = self.df("activity")
         years = sorted(inc["Year"].dropna().unique().tolist()) if not inc.empty else []
+        depts, areas = set(C.DEPARTMENTS), set(C.AREAS)
+        for fr in (inc, act):
+            if not fr.empty and "Department" in fr:
+                depts |= {d for d in fr["Department"].dropna().astype(str) if d.strip()}
+            if not fr.empty and "Area" in fr:
+                areas |= {a for a in fr["Area"].dropna().astype(str) if a.strip()}
         return {
             "years": ["All"] + [str(int(y)) for y in years],
             "months": ["All"] + ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-            "departments": ["All"] + C.DEPARTMENTS,
-            "areas": ["All"] + C.AREAS,
+            "departments": ["All"] + sorted(depts),
+            "areas": ["All"] + sorted(areas),
         }

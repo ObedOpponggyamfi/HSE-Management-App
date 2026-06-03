@@ -158,3 +158,22 @@ SMTP_PASS = os.environ.get("HSE_SMTP_PASS", "")
 SMTP_FROM = os.environ.get("HSE_SMTP_FROM", "hse-app@mine.local")
 SMTP_TLS = os.environ.get("HSE_SMTP_TLS", "1") == "1"
 ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("HSE_ALERT_RECIPIENTS", "").split(",") if e.strip()]
+
+# ==========================================================================
+# Identity, instance dir & real-workbook import profiles
+# ==========================================================================
+COMPANY_NAME = "ASANKO GOLD MINE"
+COMPANY_SUBTITLE = "Health, Safety & Environment Management System"
+SITE_ID = os.environ.get("HSE_SITE_ID", "default")
+INSTANCE_DIR = os.path.join(BASE_DIR, "instance")   # local runtime state
+
+# Rich operational incident workbooks (the real Asanko export format). If a
+# profile's file is present in data/, the validated importer maps its columns
+# into the incident register (overriding the standard sample). Header is the
+# zero-based pandas header row (1 == Excel row 2).
+WORKBOOK_PROFILES = {
+    "asanko_incidents_v1": {
+        "dataset": "incidents", "file": "incidents.xlsx",
+        "sheet": "DataBase", "header": 1,
+    },
+}
