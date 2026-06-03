@@ -26,7 +26,8 @@ import config as C
 import reports as reports_mod
 from core import DataStore
 from extensions import db, login_manager
-from forms import ActionForm, EventForm, IncidentForm, LoginForm, UserForm
+from forms import (ActionForm, EventForm, IncidentForm, InvestigationForm,
+                   LoginForm, UserForm)
 from importer import (insert_action, insert_incident, log_audit, next_ref,
                       seed_database, update_action_status)
 
@@ -40,7 +41,7 @@ db.init_app(app)
 login_manager.init_app(app)
 
 # Models must be imported so their tables are registered before create_all().
-from models import AuditLog, Event, User  # noqa: E402
+from models import AuditLog, Event, Investigation, User  # noqa: E402
 
 # First-run bootstrap + initial consolidation (inside an app context).
 with app.app_context():
@@ -218,6 +219,46 @@ def training():
     f = get_filters()
     view = store.competency_view(f)
     return render_template("training.html", view=view, charts={"comp": view["chart"]})
+
+
+@app.route("/investigations")
+@login_required
+def investigations():
+    items = Investigation.query.order_by(Investigation.id.desc()).all()
+    stats = {"total": len(items),
+             "open": sum(1 for i in items if i.status != "Completed"),
+             "hipo": sum(1 for i in items if i.hipo),
+             "completed": sum(1 for i in items if i.status == "Completed")}
+    return render_template("investigations.html", items=items, stats=stats)
+
+
+@app.route("/investigations/new", methods=["GET", "POST"])
+@role_required("hse_officer")
+def investigation_new():
+    form = InvestigationForm()
+    inc = store.df("incidents")
+    if not inc.empty:
+        ids = list(inc.sort_values("Date", ascending=False)["ID"].astype(str).head(300))
+        form.incident_id.choices = [(x, x) for x in ids]
+    else:
+        form.incident_id.choices = [("", "(no incidents)")]
+    if not form.is_submitted():
+        form.investigator.data = current_user.name
+    if form.validate_on_submit():
+        ref = next_ref("investigations", "ref", "INV")
+        db.session.add(Investigation(
+            ref=ref, incident_id=form.incident_id.data, hipo=(form.hipo.data == "Yes"),
+            method=form.method.data, immediate_cause=form.immediate_cause.data,
+            root_cause=form.root_cause.data, why1=form.why1.data, why2=form.why2.data,
+            why3=form.why3.data, why4=form.why4.data, why5=form.why5.data,
+            status=form.status.data, investigator=form.investigator.data or current_user.name,
+            created_by=current_user.username))
+        db.session.commit()
+        log_audit(current_user.username, "create", "investigation", ref, form.method.data)
+        flash(f"Investigation {ref} saved.")
+        return redirect(url_for("investigations"))
+    return render_template("form_page.html", form=form, title="Incident Investigation (RCA)",
+                           subtitle="Classify HiPo, capture 5-Whys / ICAM root cause, link to the incident.")
 
 
 @app.route("/registers")

@@ -66,3 +66,21 @@ class UserForm(FlaskForm):
     role = SelectField("Role", choices=_ch(C.ROLE_ORDER), validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=5)])
     submit = SubmitField("Create user")
+
+
+class InvestigationForm(FlaskForm):
+    incident_id = SelectField("Incident", validators=[DataRequired()])   # choices set in the view
+    hipo = SelectField("High-potential (HiPo)?", choices=_ch(["No", "Yes"]), validators=[DataRequired()])
+    method = SelectField("Method", choices=_ch(["5-Whys", "ICAM", "Fishbone", "TapRooT"]),
+                         validators=[DataRequired()])
+    immediate_cause = TextAreaField("Immediate cause")
+    why1 = StringField("Why 1")
+    why2 = StringField("Why 2")
+    why3 = StringField("Why 3")
+    why4 = StringField("Why 4")
+    why5 = StringField("Why 5 (root)")
+    root_cause = TextAreaField("Root cause", validators=[DataRequired()])
+    investigator = StringField("Investigator")
+    status = SelectField("Status", choices=_ch(["Open", "In Progress", "Completed"]),
+                         validators=[DataRequired()])
+    submit = SubmitField("Save investigation")

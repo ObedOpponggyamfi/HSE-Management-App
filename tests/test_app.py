@@ -38,10 +38,27 @@ def test_unauthenticated_redirects(client):
 
 def test_all_pages_load_for_admin(client):
     login(client)
-    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/training", "/compliance",
-                 "/environmental", "/contractors", "/registers", "/alerts",
-                 "/report", "/data", "/admin/users", "/admin/audit"]:
+    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/training",
+                 "/investigations", "/compliance", "/environmental", "/contractors",
+                 "/registers", "/alerts", "/report", "/data", "/admin/users", "/admin/audit"]:
         assert client.get(path).status_code == 200, path
+
+
+def test_create_investigation(client):
+    login(client)
+    inc = A.store.df("incidents")
+    incident_id = str(inc["ID"].iloc[0]) if not inc.empty else "INC-0001"
+    from models import Investigation
+    with A.app.app_context():
+        before = Investigation.query.count()
+    resp = client.post("/investigations/new", data={
+        "incident_id": incident_id, "hipo": "Yes", "method": "5-Whys",
+        "immediate_cause": "test", "root_cause": "ci root cause", "why1": "a",
+        "why2": "b", "why3": "c", "why4": "d", "why5": "e", "status": "Open",
+        "investigator": "Tester"})
+    assert resp.status_code == 302
+    with A.app.app_context():
+        assert Investigation.query.count() == before + 1
 
 
 def test_rolling_rates_shape():

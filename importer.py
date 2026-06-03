@@ -24,7 +24,7 @@ from sqlalchemy import inspect, text
 
 import config as C
 from extensions import db
-from models import Event, ImportRun, User
+from models import Event, ImportRun, Investigation, User
 
 # Minimum required (non-empty) columns for a standard row to be accepted.
 REQUIRED = {
@@ -217,6 +217,8 @@ def seed_database(force_import=False):
             result["users"] += 1
     if Event.query.count() == 0:
         result["events"] = _seed_events()
+    if Investigation.query.count() == 0:
+        result["investigations"] = _seed_investigations()
     db.session.commit()
     return result
 
@@ -242,6 +244,35 @@ def _seed_events(n=45):
             description=str(rng.choice(descs[cat])), reported_by=str(rng.choice(C.OWNERS)),
             status=str(rng.choice(C.EVENT_STATUS, p=[0.45, 0.2, 0.35]))))
     return n
+
+
+def _seed_investigations(n=6):
+    rng = np.random.default_rng(C.RNG_SEED + 11)
+    try:
+        df = pd.read_sql('SELECT "ID","Type","Area" FROM incidents', db.engine)
+    except Exception:
+        df = pd.DataFrame()
+    if df.empty:
+        return 0
+    pool = df[df["Type"].isin(C.RECORDABLE_TYPES)] if "Type" in df else df
+    if pool.empty:
+        pool = df
+    picks = pool.head(40).sample(min(n, len(pool)), random_state=11)
+    methods = ["5-Whys", "ICAM", "Fishbone"]
+    whys = ["Task deviated from the safe procedure", "Procedure skipped under time pressure",
+            "Supervision gap during shift change", "Refresher training overdue",
+            "Inadequate planning / risk assessment of the task"]
+    made = 0
+    for i, (_, r) in enumerate(picks.iterrows(), start=1):
+        db.session.add(Investigation(
+            ref=f"INV-{i:04d}", incident_id=str(r["ID"]), hipo=bool(rng.random() < 0.4),
+            method=str(rng.choice(methods)),
+            immediate_cause=f"Immediate cause linked to {r.get('Type', 'event')} at {r.get('Area', 'site')}",
+            root_cause=whys[-1], why1=whys[0], why2=whys[1], why3=whys[2], why4=whys[3], why5=whys[4],
+            status=str(rng.choice(["Completed", "In Progress", "Open"], p=[0.5, 0.3, 0.2])),
+            investigator=str(rng.choice(C.OWNERS)), created_by="seed"))
+        made += 1
+    return made
 
 
 # ---------------------------------------------------------------------------

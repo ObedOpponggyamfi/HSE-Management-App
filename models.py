@@ -96,3 +96,24 @@ class ImportRun(db.Model):
     rows_accepted = db.Column(db.Integer, default=0)
     rows_rejected = db.Column(db.Integer, default=0)
     errors = db.Column(db.Text, default="[]")
+
+
+class Investigation(db.Model):
+    """Root-cause investigation linked to an incident (5-Whys / ICAM / Fishbone)."""
+    __tablename__ = "investigations"
+    id = db.Column(db.Integer, primary_key=True)
+    ref = db.Column(db.String(20))
+    incident_id = db.Column(db.String(80), index=True)
+    hipo = db.Column(db.Boolean, default=False)          # high-potential incident
+    method = db.Column(db.String(40), default="5-Whys")
+    immediate_cause = db.Column(db.Text, default="")
+    root_cause = db.Column(db.Text, default="")
+    why1 = db.Column(db.String(300), default="")
+    why2 = db.Column(db.String(300), default="")
+    why3 = db.Column(db.String(300), default="")
+    why4 = db.Column(db.String(300), default="")
+    why5 = db.Column(db.String(300), default="")
+    status = db.Column(db.String(20), default="Open")
+    investigator = db.Column(db.String(120), default="")
+    created_by = db.Column(db.String(80))
+    created_at = db.Column(db.DateTime, default=_utcnow)

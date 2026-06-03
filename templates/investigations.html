@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Investigations{% endblock %}
+{% block heading %}Incident Investigations & Root-Cause Analysis{% endblock %}
+{% block subheading %}HiPo classification, 5-Whys / ICAM root cause, linked to the incident register{% endblock %}
+{% block filterbar %}{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  {% if current_user.can('hse_officer') %}
+  <a class="btn-refresh" href="{{ url_for('investigation_new') }}">＋ New investigation</a>
+  {% endif %}
+</div>
+
+<div class="mini-stats">
+  <div class="mini big"><span class="mini-n">{{ stats.total }}</span><span class="mini-l">Investigations</span></div>
+  <div class="mini"><span class="mini-n">{{ stats.open }}</span><span class="mini-l">Open / in progress</span></div>
+  <div class="mini"><span class="mini-n">{{ stats.completed }}</span><span class="mini-l">Completed</span></div>
+  <div class="mini"><span class="mini-n" style="color:var(--bad)">{{ stats.hipo }}</span><span class="mini-l">HiPo</span></div>
+</div>
+
+<div class="card">
+  <table class="data-table sortable">
+    <thead><tr><th>Ref</th><th>Incident</th><th>HiPo</th><th>Method</th><th>Root cause</th>
+      <th>Investigator</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for i in items %}
+      <tr class="{{ 'row-alert' if i.hipo and i.status != 'Completed' else '' }}">
+        <td class="mono">{{ i.ref }}</td>
+        <td class="mono">{{ i.incident_id }}</td>
+        <td>{% if i.hipo %}<span class="pill pill-critical">HiPo</span>{% else %}—{% endif %}</td>
+        <td>{{ i.method }}</td>
+        <td>{{ i.root_cause }}</td>
+        <td>{{ i.investigator }}</td>
+        <td>{{ i.created_at.strftime('%d-%b-%Y') if i.created_at else '' }}</td>
+        <td><span class="pill pill-{{ i.status|lower|replace(' ','-') }}">{{ i.status }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty">No investigations yet. Click “New investigation” to start one.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

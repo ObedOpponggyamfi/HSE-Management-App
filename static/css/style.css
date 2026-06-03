@@ -134,7 +134,7 @@ small{color:var(--muted);font-weight:500}
 /* status pills */
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;
   background:#eceff3;color:#475569}
-.pill-closed,.pill-compliant,.pill-active,.pill-current,.pill-loaded,.pill-valid{background:var(--good-bg);color:var(--good)}
+.pill-closed,.pill-compliant,.pill-active,.pill-current,.pill-loaded,.pill-valid,.pill-completed{background:var(--good-bg);color:var(--good)}
 .pill-open,.pill-overdue,.pill-expired{background:var(--bad-bg);color:var(--bad)}
 .pill-under-investigation,.pill-action-pending,.pill-due-soon,.pill-expiring,.pill-in-progress,.pill-monitor{background:var(--warn-bg);color:var(--warn)}
 .pill-low{background:#e7f0e9;color:#2f7d4d}.pill-medium{background:#fdf3d6;color:var(--warn)}
