@@ -204,6 +204,14 @@ def contractors():
     return render_template("contractors.html", view=view, charts={"contractor": view["chart"]})
 
 
+@app.route("/rates")
+@login_required
+def rates():
+    f = get_filters()
+    roll = store.rolling_rates(f)
+    return render_template("rates.html", roll=roll, charts={"rates": roll})
+
+
 @app.route("/registers")
 @login_required
 def registers():

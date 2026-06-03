@@ -38,10 +38,16 @@ def test_unauthenticated_redirects(client):
 
 def test_all_pages_load_for_admin(client):
     login(client)
-    for path in ["/", "/incidents", "/events", "/actions", "/compliance",
+    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/compliance",
                  "/environmental", "/contractors", "/registers", "/alerts",
                  "/report", "/data", "/admin/users", "/admin/audit"]:
         assert client.get(path).status_code == 200, path
+
+
+def test_rolling_rates_shape():
+    r = A.store.rolling_rates(ALL)
+    assert set(("labels", "trifr", "ltifr", "aifr", "latest")).issubset(r)
+    assert len(r["labels"]) == len(r["trifr"]) == len(r["aifr"])
 
 
 def test_dashboard_has_twelve_kpis():

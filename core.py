@@ -340,6 +340,37 @@ class DataStore:
                             if row["TrainAssigned"] else 0)
         return {"labels": labels, "data": data, "target": round(C.TARGET_TRAINING * 100)}
 
+    def rolling_rates(self, f, window=12):
+        """Rolling 12-month TRIFR / LTIFR / AIFR (the standard reporting basis)."""
+        inc = self._filter(self.df("incidents"), f, year=False, month=False)
+        act = self._filter(self.df("activity"), f, year=False, month=False)
+        injury = set(C.RECORDABLE_TYPES) | {"First Aid"}
+        rec, lti, ai, mh, labels = [], [], [], [], []
+        for key, label in self._timeline():
+            i = inc[inc["MonthKey"] == key] if not inc.empty else inc
+            a = act[act["MonthKey"] == key] if not act.empty else act
+            labels.append(label)
+            rec.append(int(i["Recordable"].sum()) if not i.empty else 0)
+            lti.append(int(i["LTI"].sum()) if not i.empty else 0)
+            ai.append(int(i["Type"].isin(injury).sum()) if not i.empty else 0)
+            mh.append(float(a["ManHours"].sum()) if not a.empty else 0.0)
+
+        def roll(arr, i):
+            lo = max(0, i - window + 1)
+            return sum(arr[lo:i + 1])
+
+        trifr, ltifr, aifr = [], [], []
+        for i in range(len(labels)):
+            h = roll(mh, i)
+            trifr.append(round(roll(rec, i) / h * C.RATE_BASE, 2) if h else 0)
+            ltifr.append(round(roll(lti, i) / h * C.RATE_BASE, 2) if h else 0)
+            aifr.append(round(roll(ai, i) / h * C.RATE_BASE, 2) if h else 0)
+        latest = {"trifr": trifr[-1] if trifr else 0, "ltifr": ltifr[-1] if ltifr else 0,
+                  "aifr": aifr[-1] if aifr else 0}
+        return {"labels": labels, "trifr": trifr, "ltifr": ltifr, "aifr": aifr,
+                "target_trifr": C.TARGET_TRIFR, "target_ltifr": C.TARGET_LTIFR,
+                "latest": latest, "window": window}
+
     # ----- table builders --------------------------------------------------
     def recent_incidents(self, f, n=8):
         inc = self._filter(self.df("incidents"), f)

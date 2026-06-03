@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Frequency Rates{% endblock %}
+{% block heading %}Rolling 12-Month Frequency Rates{% endblock %}
+{% block subheading %}TRIFR, LTIFR and AIFR on a rolling-12-month basis (per {{ '{:,}'.format(1000000) }} hours){% endblock %}
+
+{% macro rate_card(label, value, target, lower=True) %}
+  {% if lower %}
+    {% set cls = 's-good' if value <= target else ('s-warn' if value <= target*1.15 else 's-bad') %}
+  {% else %}{% set cls = 's-neutral' %}{% endif %}
+  <div class="kpi-card {{ cls }}">
+    <div class="kpi-label">{{ label }}</div>
+    <div class="kpi-value">{{ '%.2f'|format(value) }}</div>
+    <div class="kpi-sub">{% if target %}target ≤ {{ '%.1f'|format(target) }}{% else %}all-injury basis{% endif %}</div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="kpi-grid">
+  {{ rate_card('Rolling TRIFR', roll.latest.trifr, roll.target_trifr) }}
+  {{ rate_card('Rolling LTIFR', roll.latest.ltifr, roll.target_ltifr) }}
+  {{ rate_card('Rolling AIFR', roll.latest.aifr, 0, lower=False) }}
+</div>
+
+<div class="card span-2">
+  <h3 class="card-title">Rolling 12-month rate trend <small>(vs targets)</small></h3>
+  <div class="chart-box" style="height:340px"><canvas id="ratesChart"></canvas></div>
+</div>
+
+<div class="card info">
+  <p><strong>Definitions.</strong> TRIFR = (LTI + Restricted Work + Medical Treatment) ÷ hours ×
+     {{ '{:,}'.format(1000000) }}. LTIFR counts lost-time injuries only. AIFR (All-Injury Frequency
+     Rate) additionally includes first-aid cases. Each point is the trailing 12 months, the standard
+     basis for board and regulator reporting.</p>
+</div>
+{% endblock %}

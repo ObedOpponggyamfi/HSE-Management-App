@@ -104,4 +104,14 @@
       options: { plugins: { legend: { display: true } },
         scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } });
   }
+
+  /* ---- Rolling frequency rates ---- */
+  if (D.rates && $("ratesChart")) {
+    const r = D.rates;
+    line("ratesChart", r.labels, [
+      { label: "TRIFR (12-mo)", data: r.trifr, borderColor: NAVY, borderWidth: 2.6, tension: .3 },
+      { label: "LTIFR (12-mo)", data: r.ltifr, borderColor: GREEN, borderWidth: 2.6, tension: .3 },
+      { label: "AIFR (12-mo)", data: r.aifr, borderColor: GOLD, borderWidth: 2, tension: .3 },
+      limitLine(r.labels.length, r.target_trifr, "TRIFR target") ]);
+  }
 })();
