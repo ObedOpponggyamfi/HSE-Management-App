@@ -25,7 +25,7 @@ if not defined PYTHON (
 echo Using Python: %PYTHON%
 
 REM ----- install dependencies only if something is missing -----
-%PYTHON% -c "import flask, flask_sqlalchemy, flask_login, flask_wtf, pandas, openpyxl, numpy" >nul 2>nul
+%PYTHON% -c "import flask, pandas, openpyxl, numpy" >nul 2>nul
 if errorlevel 1 (
     echo Installing required packages ^(first run only^)...
     %PYTHON% -m pip install -r requirements.txt

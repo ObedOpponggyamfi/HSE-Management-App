@@ -1,9 +1,5 @@
-[project]
-name = "hse-management-app"
-version = "0.2.0"
-description = "Local HSE (Health, Safety & Environment) management web app for a gold mine"
-requires-python = ">=3.10"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-q"
+

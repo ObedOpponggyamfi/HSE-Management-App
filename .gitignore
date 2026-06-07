@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+.pytest_cache/
 .venv/
 venv/
 env/
@@ -9,16 +10,9 @@ env/
 # Excel lock / temp files
 ~$*.xlsx
 *.tmp
-
-# Runtime database (recreated on first run from data/*.xlsx)
-*.db
 *.sqlite
-hse.db
-instance/
-.pytest_cache/
-
-# Real/operational incident workbook (keep private; not for the public repo)
 data/incidents.xlsx
+instance/
 
 # Editor / tooling
 .omc/

@@ -15,6 +15,7 @@ verifies, without Excel:
 
 Exit code 0 = clean, 1 = problems found.
 """
+import argparse
 import re
 import sys
 
@@ -35,8 +36,15 @@ EXCEL_FUNCS = {
 STRUCT_ITEMS = {"#All", "#Data", "#Headers", "#Totals", "#This Row"}
 
 
-def main():
-    wb = load_workbook(FILE, data_only=False)
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Verify HSE workbook formulas and structure.")
+    parser.add_argument("file", nargs="?", default=FILE)
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    wb = load_workbook(args.file, data_only=False)
     defined = set(wb.defined_names.keys())
 
     # map: table name -> set(column headers)

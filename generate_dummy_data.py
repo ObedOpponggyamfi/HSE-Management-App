@@ -223,68 +223,10 @@ def generate(anchor: dt.date | None = None) -> dict:
         ("Ambulance 1", "Medical", 30), ("Tailings Piezometers", "Geotech", 75),
         ("AED Units", "Medical", 50), ("Spill Response Trailer", "Environmental", 100)], start=1)])
 
-    # ---- Competency / training records (with certificate & licence expiry) --
-    names = ["K. Mensah", "A. Owusu", "J. Boateng", "E. Asante", "P. Annan", "Y. Darko",
-             "S. Addo", "M. Quaye", "F. Agyeman", "D. Tetteh", "G. Appiah", "L. Nyarko",
-             "B. Osei", "R. Adjei", "T. Kufuor", "N. Amoah", "C. Baptista", "H. Acheampong",
-             "I. Sarpong", "V. Ofori", "W. Danso", "O. Frimpong", "Q. Bediako", "Z. Gyasi",
-             "U. Mensah", "X. Antwi", "K. Boadu", "A. Dapaah", "J. Yeboah", "E. Twum",
-             "P. Asomani", "Y. Bonsu", "S. Larbi", "M. Opoku", "F. Wiredu", "D. Agyapong",
-             "G. Owusu", "L. Asare", "B. Nartey", "R. Kpodo"]
-    comp_defs = [
-        ("Site Induction", "Induction", 12), ("Blasting Licence", "Statutory Licence", 24),
-        ("Crane Operator Licence", "Statutory Licence", 24), ("Forklift Licence", "Statutory Licence", 36),
-        ("Dangerous Goods Licence", "Statutory Licence", 24), ("First Aid Certificate", "Statutory Licence", 36),
-        ("Periodic Medical", "Medical", 12), ("Audiometric Test", "Medical", 12),
-        ("Working at Height", "Skills", 24), ("Confined Space Entry", "Skills", 12),
-        ("Cyanide Handling", "Skills", 12), ("Defensive Driving", "Skills", 24),
-        ("Fire Warden", "Skills", 24),
-    ]
-    comp_rows = []
-    for person in names:
-        dept = str(rng.choice(C.DEPARTMENTS))
-        idx = rng.choice(range(1, len(comp_defs)), size=int(rng.integers(3, 6)), replace=False)
-        for comp, ctype, valid_m in [comp_defs[0]] + [comp_defs[i] for i in idx]:
-            completed = today - dt.timedelta(days=int(rng.integers(30, valid_m * 30 + 150)))
-            comp_rows.append({
-                "Person": person, "Department": dept, "Competency": comp, "Type": ctype,
-                "Completed": completed, "Expiry": completed + dt.timedelta(days=int(valid_m * 30))})
-    competency = pd.DataFrame(comp_rows)
-
-    # ---- GISTM tailings: dam inspections + piezometer (phreatic) readings ---
-    tsfs = ["Main TSF", "Esaase TSF"]
-    insp_rows = []
-    for tsf in tsfs:
-        for mo in months[-18:]:
-            insp_rows.append({
-                "TSF": tsf, "Date": mo["first"] + dt.timedelta(days=int(rng.integers(0, 20))),
-                "Inspector": str(rng.choice(C.OWNERS)),
-                "Freeboard_m": round(float(rng.uniform(1.2, 2.6)), 2),
-                "Status": str(rng.choice(["Satisfactory", "Action Required", "Critical"],
-                                         p=[0.85, 0.13, 0.02])),
-                "Findings": str(rng.choice(["No issues noted", "Minor erosion on downstream face",
-                    "Vegetation on embankment", "Seepage observed at toe",
-                    "Instrument cover damaged", "Spillway clear"]))})
-    tailings_inspections = pd.DataFrame(insp_rows)
-
-    piez_rows = []
-    for tsf in tsfs:
-        for p in range(1, 5):
-            thr = round(float(rng.uniform(2.8, 3.4)), 2)
-            for mo in months[-12:]:
-                reading = round(float(rng.normal(thr * rng.uniform(0.7, 0.92), 0.15)), 2)
-                piez_rows.append({"TSF": tsf, "Piezo_ID": f"{tsf.split()[0]}-P{p}",
-                                  "Date": mo["first"], "Reading_m": reading, "Threshold_m": thr})
-    for j in rng.choice(range(len(piez_rows)), size=min(3, len(piez_rows)), replace=False):
-        piez_rows[j]["Reading_m"] = round(piez_rows[j]["Threshold_m"] + float(rng.uniform(0.05, 0.3)), 2)
-    piezometers = pd.DataFrame(piez_rows)
-
     return {
         "incidents": incidents, "activity": activity, "actions": actions,
         "compliance": compliance, "environmental": environmental,
         "permits": permits, "audits": audits, "equipment": equipment,
-        "competency": competency, "tailings_inspections": tailings_inspections,
-        "piezometers": piezometers,
     }
 
 

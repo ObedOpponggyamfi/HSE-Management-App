@@ -84,14 +84,6 @@
         [{ label: "Water (m³)", data: e.water, backgroundColor: TEAL }]);
   }
 
-  /* ---- Event reports ---- */
-  if (D.events) {
-    if ($("eventsCatChart")) doughnut("eventsCatChart", D.events.cats.labels, D.events.cats.data);
-    if ($("eventsTrendChart")) line("eventsTrendChart", D.events.trend.labels, [
-      { label: "Reports", data: D.events.trend.data, borderColor: GREEN,
-        backgroundColor: "rgba(26,122,61,.12)", fill: true, borderWidth: 2.5, tension: .3 }]);
-  }
-
   /* ---- Contractors ---- */
   if (D.contractor && $("contractorChart")) {
     const c = D.contractor;
@@ -103,35 +95,5 @@
         limitLine(c.labels.length, c.target, "Target TRIFR") ] },
       options: { plugins: { legend: { display: true } },
         scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } });
-  }
-
-  /* ---- Rolling frequency rates ---- */
-  if (D.rates && $("ratesChart")) {
-    const r = D.rates;
-    line("ratesChart", r.labels, [
-      { label: "TRIFR (12-mo)", data: r.trifr, borderColor: NAVY, borderWidth: 2.6, tension: .3 },
-      { label: "LTIFR (12-mo)", data: r.ltifr, borderColor: GREEN, borderWidth: 2.6, tension: .3 },
-      { label: "AIFR (12-mo)", data: r.aifr, borderColor: GOLD, borderWidth: 2, tension: .3 },
-      limitLine(r.labels.length, r.target_trifr, "TRIFR target") ]);
-  }
-
-  /* ---- Training & competency ---- */
-  if (D.comp) {
-    if ($("compDeptChart")) bar("compDeptChart", D.comp.dept.labels,
-        [{ label: "% valid", data: D.comp.dept.data, backgroundColor: NAVY }]);
-    if ($("compTypeChart")) doughnut("compTypeChart", D.comp.type.labels, D.comp.type.data);
-  }
-
-  /* ---- Tailings (GISTM) ---- */
-  if (D.tailings && $("tailingsChart")) {
-    const t = D.tailings;
-    const ds = [
-      { label: "Avg phreatic (m)", data: t.phreatic, borderColor: NAVY,
-        backgroundColor: "rgba(20,51,82,.10)", fill: true, borderWidth: 2.5, tension: .3 },
-      limitLine(t.labels.length, t.threshold, "Threshold") ];
-    if (t.freeboard && t.freeboard.some(v => v != null))
-      ds.push({ label: "Min freeboard (m)", data: t.freeboard, borderColor: GOLD,
-                borderWidth: 2, tension: .3 });
-    line("tailingsChart", t.labels, ds);
   }
 })();

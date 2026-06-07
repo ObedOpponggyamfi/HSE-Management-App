@@ -33,6 +33,7 @@ Author: generated for an Asanko-style gold mine (Ghana) HSE programme.
 
 from __future__ import annotations
 
+import argparse
 import calendar
 import datetime as dt
 from dataclasses import dataclass, field
@@ -51,16 +52,19 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
+import config as C
+
 # =============================================================================
 # 1. CONFIGURATION, CORPORATE THEME, ENUMERATIONS
 # =============================================================================
 
 OUTPUT_FILE = "Asanko_HSE_Management_Dashboard.xlsx"
-COMPANY_NAME = "ASANKO GOLD MINE"
-COMPANY_SUB = "Health, Safety & Environment Management System"
-RNG_SEED = 42
-MONTHS_OF_HISTORY = 24          # trailing months ending at REPORT_ANCHOR
-REPORT_ANCHOR = dt.date(2026, 5, 31)   # "today" the seed data is built around
+COMPANY_NAME = C.COMPANY_NAME
+COMPANY_SUB = C.COMPANY_SUBTITLE
+RNG_SEED = C.RNG_SEED
+MONTHS_OF_HISTORY = C.MONTHS_OF_HISTORY
+CHART_MONTHS = C.MONTHS_OF_HISTORY
+REPORT_ANCHOR = dt.date.today()
 
 # ----- Corporate colour palette (hex, no leading '#') -----------------------
 NAVY = "0F2A43"      # deep header navy
@@ -98,73 +102,43 @@ FMT_DATE = "dd-mmm-yyyy"
 FMT_MMM = "mmm-yy"
 
 # ----- HSE domain enumerations ----------------------------------------------
-INCIDENT_TYPES = [
-    "Medical Treatment", "First Aid", "Restricted Work", "Lost Time Injury",
-    "Property Damage", "Environmental", "Other",
-]
-RECORDABLE_TYPES = ["Lost Time Injury", "Restricted Work", "Medical Treatment"]
-INCIDENT_CLASSES = [
-    "Personal Injury", "Occupational Illness", "Fire / Explosion",
-    "Chemical / Cyanide Spill", "Vehicle / Mobile Equipment", "Slip / Trip / Fall",
-    "Fall from Height", "Caught Between / Struck By", "Electrical",
-    "Environmental Release", "Security", "Other",
-]
-INCIDENT_STATUS = ["Open", "Under Investigation", "Action Pending", "Closed"]
-ACTION_STATUS = ["Open", "In Progress", "Due Soon", "Closed"]
+INCIDENT_TYPES = C.INCIDENT_TYPES
+RECORDABLE_TYPES = C.RECORDABLE_TYPES
+INCIDENT_CLASSES = C.INCIDENT_CLASSES
+INCIDENT_STATUS = C.INCIDENT_STATUS
+ACTION_STATUS = C.ACTION_STATUS
 ADEQUACY = ["Adequate", "Needs Improvement", "Inadequate"]
-PRIORITY = ["Low", "Medium", "High", "Critical"]
+PRIORITY = C.PRIORITY
 AUDIT_TYPES = ["Internal", "External", "Regulatory"]
 
 # Area -> (Department, dominant Company) mapping. This is the master location
 # list reused everywhere so SUMPRODUCT equality matches exactly across sheets.
-AREA_INFO = [
-    ("Nkran Open Pit",            "Mining",         "AUMS (Mining Contractor)"),
-    ("Esaase Open Pit",           "Mining",         "AUMS (Mining Contractor)"),
-    ("Drill & Blast",             "Mining",         "Maxam (Blasting)"),
-    ("Haul Roads",                "Mining",         "AUMS (Mining Contractor)"),
-    ("Explosives Magazine",       "Mining",         "Maxam (Blasting)"),
-    ("Crushing Circuit",          "Processing",     "Owner (Asanko)"),
-    ("Processing Plant (CIL)",    "Processing",     "Owner (Asanko)"),
-    ("Elution & Gold Room",       "Processing",     "Owner (Asanko)"),
-    ("Tailings Storage Facility", "Environment",    "Owner (Asanko)"),
-    ("Water Treatment",           "Environment",    "Owner (Asanko)"),
-    ("Assay Laboratory",          "Laboratory",     "SGS (Laboratory)"),
-    ("HME Workshop",              "Engineering",    "Owner (Asanko)"),
-    ("Fuel Farm",                 "Engineering",    "Owner (Asanko)"),
-    ("Power Station",             "Engineering",    "Genser (Power)"),
-    ("Warehouse & Stores",        "Logistics",      "Owner (Asanko)"),
-    ("Administration",            "Administration", "Owner (Asanko)"),
-    ("Accommodation Camp",        "Administration", "Catering Co (Camp)"),
-    ("Security Gatehouse",        "Security",       "G4S (Security)"),
-]
-AREAS = [a[0] for a in AREA_INFO]
-DEPARTMENTS = sorted({a[1] for a in AREA_INFO})
-COMPANIES = ["Owner (Asanko)", "AUMS (Mining Contractor)", "Maxam (Blasting)",
-             "SGS (Laboratory)", "Genser (Power)", "Catering Co (Camp)", "G4S (Security)"]
-AREA_DEPT = {a[0]: a[1] for a in AREA_INFO}
-AREA_COMPANY = {a[0]: a[2] for a in AREA_INFO}
-
-OWNERS = ["K. Mensah", "A. Owusu", "J. Boateng", "E. Asante", "P. Annan",
-          "Y. Darko", "S. Addo", "M. Quaye", "F. Agyeman", "D. Tetteh"]
+AREA_INFO = C.AREA_INFO
+AREAS = C.AREAS
+DEPARTMENTS = C.DEPARTMENTS
+COMPANIES = C.COMPANIES
+AREA_DEPT = C.AREA_DEPT
+AREA_COMPANY = C.AREA_COMPANY
+OWNERS = C.OWNERS
 
 # Settings: (defined_name, label, value, number_format). Formulas reference the
 # defined names -- never the literal numbers.
 SETTINGS = [
-    ("RATE_BASE",            "Frequency-rate base (mining standard)",      1_000_000, FMT_INT),
-    ("RATE_BASE_OSHA",       "Frequency-rate base (OSHA 200,000 std)",       200_000, FMT_INT),
-    ("TARGET_TRIFR",         "Target TRIFR (per 1,000,000 hrs)",                 3.0, FMT_DEC2),
-    ("TARGET_LTIFR",         "Target LTIFR (per 1,000,000 hrs)",                 0.8, FMT_DEC2),
-    ("TARGET_INSPECTION",    "Target inspection performance score",             0.95, FMT_PCT0),
-    ("TARGET_TRAINING",      "Target training completion rate",                 0.90, FMT_PCT0),
-    ("TARGET_ENV",           "Target environmental compliance",                 0.98, FMT_PCT0),
-    ("TARGET_NEARMISS",      "Target near-miss reports (per month)",              40, FMT_INT),
-    ("NEARMISS_RATIO_TGT",   "Target near-miss : recordable ratio",               10, FMT_INT),
-    ("THRESH_LTI_GOOD",      "Days-since-LTI: green threshold",                   30, FMT_INT),
-    ("THRESH_LTI_WARN",      "Days-since-LTI: amber threshold",                    7, FMT_INT),
-    ("PM10_LIMIT",           "PM10 dust limit (ug/m3, EPA Ghana)",                70, FMT_INT),
-    ("PH_MIN",               "Discharge pH lower limit",                         6.0, FMT_DEC2),
-    ("PH_MAX",               "Discharge pH upper limit",                         9.0, FMT_DEC2),
-    ("WADCN_LIMIT",          "WAD cyanide limit (mg/L, ICMC)",                    50, FMT_INT),
+    ("RATE_BASE",            "Frequency-rate base (mining standard)",      C.RATE_BASE, FMT_INT),
+    ("RATE_BASE_OSHA",       "Frequency-rate base (OSHA 200,000 std)",     C.RATE_BASE_OSHA, FMT_INT),
+    ("TARGET_TRIFR",         "Target TRIFR (per 1,000,000 hrs)",           C.TARGET_TRIFR, FMT_DEC2),
+    ("TARGET_LTIFR",         "Target LTIFR (per 1,000,000 hrs)",           C.TARGET_LTIFR, FMT_DEC2),
+    ("TARGET_INSPECTION",    "Target inspection performance score",        C.TARGET_INSPECTION, FMT_PCT0),
+    ("TARGET_TRAINING",      "Target training completion rate",            C.TARGET_TRAINING, FMT_PCT0),
+    ("TARGET_ENV",           "Target environmental compliance",            C.TARGET_ENV, FMT_PCT0),
+    ("TARGET_NEARMISS",      "Target near-miss reports (per month)",       C.TARGET_NEARMISS_PERMONTH, FMT_INT),
+    ("NEARMISS_RATIO_TGT",   "Target near-miss : recordable ratio",        C.NEARMISS_RATIO_TGT, FMT_INT),
+    ("THRESH_LTI_GOOD",      "Days-since-LTI: green threshold",            C.THRESH_LTI_GOOD, FMT_INT),
+    ("THRESH_LTI_WARN",      "Days-since-LTI: amber threshold",            C.THRESH_LTI_WARN, FMT_INT),
+    ("PM10_LIMIT",           "PM10 dust limit (ug/m3, EPA Ghana)",         C.PM10_LIMIT, FMT_INT),
+    ("PH_MIN",               "Discharge pH lower limit",                  C.PH_MIN, FMT_DEC2),
+    ("PH_MAX",               "Discharge pH upper limit",                  C.PH_MAX, FMT_DEC2),
+    ("WADCN_LIMIT",          "WAD cyanide limit (mg/L, ICMC)",             C.WADCN_LIMIT, FMT_INT),
 ]
 
 # Fixed cell anchors so defined names can be created up-front (decoupled from
@@ -604,6 +578,8 @@ def generate_sample_data():
         lam = 9.0 - 4.0 * (k / max(1, len(months) - 1))
         n_inc = int(rng.poisson(max(2.0, lam)))
         ndays = calendar.monthrange(mo["year"], mo["month"])[1]
+        if mo["year"] == today.year and mo["month"] == today.month:
+            ndays = min(ndays, today.day)
         for _ in range(n_inc):
             area = rng.choice(AREAS)
             itype = rng.choice(INCIDENT_TYPES, p=type_w)
@@ -749,11 +725,11 @@ def generate_sample_data():
         ("Security / illegal mining incursion", "Security Gatehouse", "Security", 3, 3),
     ]
     risk_rows = []
-    for i, (desc, area, cat, L, C) in enumerate(risk_defs, start=1):
+    for i, (desc, area, cat, likelihood, consequence) in enumerate(risk_defs, start=1):
         adeq = rng.choice(ADEQUACY, p=[0.5, 0.4, 0.1])
         risk_rows.append({
             "Risk_ID": f"RR-{i:03d}", "Description": desc, "Area": area, "Category": cat,
-            "Likelihood": L, "Consequence": C, "Score": "=[@Likelihood]*[@Consequence]",
+            "Likelihood": likelihood, "Consequence": consequence, "Score": "=[@Likelihood]*[@Consequence]",
             "Risk_Level": ('=IF([@Score]>=16,"Critical",IF([@Score]>=10,"High",'
                            'IF([@Score]>=5,"Medium","Low")))'),
             "Control_Adequacy": adeq, "Owner": rng.choice(OWNERS),
@@ -826,19 +802,10 @@ def generate_sample_data():
     environmental = pd.DataFrame(env_rows)
 
     # ---- Contractors (man-hours & recordables live from the spine) ---------
-    scope = {
-        "Owner (Asanko)": "Process plant, admin, environment",
-        "AUMS (Mining Contractor)": "Load & haul, drilling, pit ops",
-        "Maxam (Blasting)": "Explosives supply & blasting",
-        "SGS (Laboratory)": "Assay & sample preparation",
-        "Genser (Power)": "Power generation & distribution",
-        "Catering Co (Camp)": "Catering & camp services",
-        "G4S (Security)": "Site security & access control",
-    }
     contractor_rows = []
     for co in COMPANIES:
         contractor_rows.append({
-            "Company": co, "Scope": scope[co],
+            "Company": co, "Scope": C.CONTRACTOR_SCOPE.get(co, ""),
             "ManHours": f'=SUMPRODUCT((tblActivity[Company]="{co}")*tblActivity[ManHours])',
             "Recordables": f'=SUMPRODUCT((tblIncidents[Company]="{co}")*tblIncidents[Recordable])',
             "LTIs": f'=SUMPRODUCT((tblIncidents[Company]="{co}")*tblIncidents[LTI])',
@@ -925,7 +892,8 @@ def generate_sample_data():
         ("AED Units", "Medical", 50), ("Spill Response Trailer", "Environmental", 100)], start=1)])
 
     return {
-        "months": months, "incidents": incidents, "activity": activity,
+        "months": months, "chart_months": month_timeline(REPORT_ANCHOR, CHART_MONTHS),
+        "incidents": incidents, "activity": activity,
         "actions": actions, "risks": risks, "compliance": compliance,
         "environmental": environmental, "contractors": contractors,
         "permits": permits, "audits": audits, "drills": drills, "ppe": ppe,
@@ -950,7 +918,7 @@ def build_lists(wb, data):
         "Type": INCIDENT_TYPES, "Class": INCIDENT_CLASSES, "IncStatus": INCIDENT_STATUS,
         "Area": AREAS, "Dept": DEPARTMENTS, "Severity": [1, 2, 3, 4, 5],
         "ActionStatus": ACTION_STATUS, "Month": ["All"] + [calendar.month_abbr[m] for m in range(1, 13)],
-        "Year": ["All"] + sorted({mo["year"] for mo in data["months"]}),
+        "Year": ["All"] + sorted({mo["year"] for mo in data.get("chart_months", data["months"])}),
         "Company": COMPANIES, "YesNo": ["Yes", "No"], "Adequacy": ADEQUACY,
         "Priority": PRIORITY, "AuditType": AUDIT_TYPES,
         "AreaFilter": ["All"] + AREAS, "DeptFilter": ["All"] + DEPARTMENTS,
@@ -1088,7 +1056,7 @@ def build_calc(wb, data):
     ws.sheet_view.showGridLines = False
     title_band(ws, "Calculation Engine  (chart sources -- filter-aware)",
                "Auto-generated. Do not edit; everything here recalculates from the data spine.", "Z")
-    months = data["months"]
+    months = data.get("chart_months", data["months"])
     n = len(months)
 
     dl_inc = pred("tblIncidents", year=False, month=False)        # dept+loc only
@@ -1830,12 +1798,36 @@ def compute_headline_kpis(data):
     }
 
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Build the standalone HSE Excel dashboard.")
+    parser.add_argument("--as-of", default=None,
+                        help="Report anchor date in YYYY-MM-DD format; defaults to today.")
+    parser.add_argument("--output", default=OUTPUT_FILE,
+                        help="Output workbook path.")
+    parser.add_argument("--months", type=int, default=C.MONTHS_OF_HISTORY,
+                        help="Months of seeded sample history.")
+    parser.add_argument("--chart-months", type=int, default=C.MONTHS_OF_HISTORY,
+                        help="Months reserved in chart helper ranges.")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
     import os
+    global OUTPUT_FILE, MONTHS_OF_HISTORY, CHART_MONTHS, REPORT_ANCHOR
+
+    args = parse_args(argv)
+    OUTPUT_FILE = args.output
+    MONTHS_OF_HISTORY = max(1, args.months)
+    CHART_MONTHS = max(MONTHS_OF_HISTORY, args.chart_months)
+    if args.as_of:
+        REPORT_ANCHOR = dt.date.fromisoformat(args.as_of)
+
     print("=" * 74)
     print(f"  {COMPANY_NAME}  |  HSE MANAGEMENT DASHBOARD GENERATOR")
     print("=" * 74)
+    print(f"  Report anchor: {REPORT_ANCHOR.isoformat()}")
     print(f"  Seeding {MONTHS_OF_HISTORY} months of sample data (numpy seed={RNG_SEED}) ...")
+    print(f"  Chart helper timeline: {CHART_MONTHS} months")
     data = generate_sample_data()
     print(f"    incidents={len(data['incidents'])}, activity rows={len(data['activity'])}, "
           f"actions={len(data['actions'])}, risks={len(data['risks'])}")

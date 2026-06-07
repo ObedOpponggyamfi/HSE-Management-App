@@ -1,46 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Data & Refresh{% endblock %}
 {% block heading %}Data & Refresh{% endblock %}
-{% block subheading %}The app consolidates everything into a local database. Import from Excel or refresh anytime.{% endblock %}
+{% block subheading %}The app consolidates every Excel file in the data folder. Edit them and click Refresh.{% endblock %}
 {% block filterbar %}{% endblock %}
 
 {% block content %}
 <div class="card">
   <div class="data-head">
-    <div>
-      <div class="data-dir">🗄 {{ status.db_path }}</div>
-      <div class="foot-dim">Last loaded {{ status.loaded_at }} · {{ status.total_files }} datasets ·
-        {{ status.total_rows }} rows · site <code>{{ status.site_id }}</code></div>
-    </div>
-    <div class="topbar-actions">
-      <a class="btn-ghost" href="{{ url_for('export_table', key='all') }}">⤓ Export all (Excel)</a>
-      {% if current_user.can('admin') %}
-      <form method="post" action="{{ url_for('import_excel') }}">
-        <button class="btn-ghost" type="submit" title="Reload the data/ Excel files into the database">⇪ Import from Excel</button>
-      </form>
-      {% endif %}
-      <form method="post" action="{{ url_for('refresh') }}">
-        <input type="hidden" name="next" value="{{ url_for('data_page') }}">
-        <button class="btn-refresh" type="submit">⟳ Refresh</button>
-      </form>
-    </div>
+      <div>
+        <div class="data-dir">📁 {{ status.data_dir }}</div>
+        <div class="foot-dim">Last consolidated: {{ status.loaded_at }} ·
+        {{ status.total_files }} sources · {{ status.total_rows }} rows ·
+        site <code>{{ status.site_id }}</code></div>
+        <div class="foot-dim">Canonical store: <code>{{ status.db_path }}</code></div>
+      </div>
+    <form method="post" action="{{ url_for('refresh') }}">
+      <input type="hidden" name="next" value="{{ url_for('data_page') }}">
+      <button class="btn-refresh big" type="submit">⟳ Refresh now</button>
+    </form>
   </div>
 
-  <table class="data-table sortable">
-    <thead><tr><th>Dataset (DB table)</th><th>Rows</th><th>Rejected</th><th>Import ID</th>
-      <th>Last import</th><th>Status</th><th>Export</th></tr></thead>
+  <table class="data-table">
+    <thead><tr><th>Dataset</th><th>File</th><th>Rows</th><th>Rejected</th><th>Import ID</th><th>Last modified</th><th>Status</th></tr></thead>
     <tbody>
       {% for s in status.files %}
-      <tr class="{{ 'row-alert' if s.rejected else '' }}">
-        <td class="mono">{{ s.key }}{% if s.profile and s.profile != 'standard' %}
-          <span class="pill pill-role">{{ s.profile }}</span>{% endif %}</td>
+      <tr class="{{ 'row-alert' if not s.loaded else '' }}">
+        <td class="mono">{{ s.key }}</td>
+        <td>{{ s.file }}</td>
         <td>{{ s.rows }}</td>
         <td>{{ s.rejected }}</td>
-        <td class="mono">{{ s.import_id or '—' }}</td>
-        <td>{{ s.modified.strftime('%d-%b %H:%M') if s.modified else '—' }}</td>
-        <td>{% if s.loaded %}<span class="pill pill-compliant">loaded</span>
-            {% else %}<span class="pill pill-due-soon">{{ s.error or 'empty' }}</span>{% endif %}</td>
-        <td><a class="mono" href="{{ url_for('export_table', key=s.key) }}">⤓ xlsx</a></td>
+        <td>{{ s.import_id or '—' }}</td>
+        <td>{{ s.modified.strftime('%d-%b-%Y %H:%M') if s.modified else '—' }}</td>
+        <td>
+          {% if s.loaded %}<span class="pill pill-compliant">loaded</span>
+          {% else %}<span class="pill pill-overdue">{{ s.error or 'missing' }}</span>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -50,26 +44,11 @@
 <div class="card info">
   <h3 class="card-title">How the workflow works</h3>
   <ol class="howto">
-    <li><strong>Capture in the app</strong> — log incidents, near misses/hazards and corrective actions
-        from the buttons in the top bar; they write straight to the database and appear instantly.</li>
-    <li><strong>Or bulk-load from Excel</strong> — drop spreadsheets in <code>{{ status.data_dir }}</code>
-        (same headers) and an admin clicks <em>Import from Excel</em>.</li>
-    <li><strong>Refresh</strong> re-reads the database; <strong>Export</strong> downloads any dataset to Excel.</li>
-    <li>Need fresh sample files? Run <code>python generate_dummy_data.py</code>.</li>
+    <li>Your safety spreadsheets live in <code>{{ status.data_dir }}</code> (one file per dataset or supported profile).</li>
+    <li>Add or edit rows in those Excel files — keep the supported column headers unchanged.</li>
+    <li>Click <strong>⟳ Refresh</strong> (top-right or above). The app imports every source into
+        SQLite, records the import outcome, then refreshes all KPIs, charts and tables.</li>
+    <li>Don't have data yet? Run <code>python generate_dummy_data.py</code> to regenerate the samples.</li>
   </ol>
-</div>
-
-<div class="card info">
-  <h3 class="card-title">Excel files available in data/</h3>
-  <table class="data-table">
-    <thead><tr><th>Dataset</th><th>File</th><th>Present</th><th>Modified</th></tr></thead>
-    <tbody>
-      {% for e in excel_files %}
-      <tr><td class="mono">{{ e.key }}</td><td>{{ e.file }}</td>
-        <td>{{ '✔' if e.exists else '—' }}</td>
-        <td>{{ e.modified.strftime('%d-%b-%Y %H:%M') if e.modified else '—' }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </div>
 {% endblock %}

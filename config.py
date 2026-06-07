@@ -16,6 +16,10 @@ import os
 # --------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")          # drop Excel files here
+INSTANCE_DIR = os.path.join(BASE_DIR, "instance")  # local SQLite + runtime state
+
+COMPANY_NAME = "ASANKO GOLD MINE"
+COMPANY_SUBTITLE = "Health, Safety & Environment Management System"
 
 # --------------------------------------------------------------------------
 # Targets, rate bases & regulatory limits  (drive the traffic lights)
@@ -112,71 +116,15 @@ DATASETS = {
     "permits":       {"file": "permits.xlsx",             "sheet": "Permits"},
     "audits":        {"file": "audits.xlsx",              "sheet": "Audits"},
     "equipment":     {"file": "equipment.xlsx",           "sheet": "Equipment"},
-    "competency":    {"file": "competency.xlsx",          "sheet": "Competency"},
-    "tailings_inspections": {"file": "tailings_inspections.xlsx", "sheet": "TailingsInspections"},
-    "piezometers":   {"file": "piezometers.xlsx",         "sheet": "Piezometers"},
 }
 
-# ==========================================================================
-# Web app: database, security, roles, alerts, email
-# ==========================================================================
-SECRET_KEY = os.environ.get("HSE_SECRET_KEY", "change-me-in-production-local-dev-only")
-DB_PATH = os.path.join(BASE_DIR, "hse.db")
-SQLALCHEMY_DATABASE_URI = os.environ.get("HSE_DATABASE_URI", f"sqlite:///{DB_PATH}")
-
-# Role hierarchy (rank ascending). `can(role)` => current rank >= required rank.
-ROLE_ORDER = ["worker", "supervisor", "hse_officer", "manager", "admin"]
-ROLE_RANK = {r: i for i, r in enumerate(ROLE_ORDER)}
-ROLE_LABELS = {
-    "worker": "Worker", "supervisor": "Supervisor", "hse_officer": "HSE Officer",
-    "manager": "Manager", "admin": "Administrator",
-}
-
-# Seed users created on first run (CHANGE THESE PASSWORDS in real use).
-SEED_USERS = [
-    {"username": "admin", "name": "Administrator", "email": "admin@mine.local",
-     "role": "admin", "password": os.environ.get("HSE_ADMIN_PASSWORD", "admin123")},
-    {"username": "hse", "name": "HSE Officer", "email": "hse@mine.local",
-     "role": "hse_officer", "password": "hse123"},
-    {"username": "worker", "name": "Field Worker", "email": "worker@mine.local",
-     "role": "worker", "password": "worker123"},
-]
-
-EVENT_CATEGORIES = ["Near Miss", "Hazard", "Observation"]
-EVENT_STATUS = ["Open", "In Review", "Closed"]
-
-# Alert thresholds
-ALERT_PERMIT_DAYS = 60
-ALERT_COMPLIANCE_DAYS = 30
-ALERT_EQUIPMENT_DAYS = 30
-ALERT_HIGH_SEVERITY = 4
-ALERT_INCIDENT_RECENT_DAYS = 30
-
-# SMTP for email digests (optional). If SMTP_HOST is blank, email is disabled
-# and the digest is previewed in-app instead.
-SMTP_HOST = os.environ.get("HSE_SMTP_HOST", "")
-SMTP_PORT = int(os.environ.get("HSE_SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("HSE_SMTP_USER", "")
-SMTP_PASS = os.environ.get("HSE_SMTP_PASS", "")
-SMTP_FROM = os.environ.get("HSE_SMTP_FROM", "hse-app@mine.local")
-SMTP_TLS = os.environ.get("HSE_SMTP_TLS", "1") == "1"
-ALERT_RECIPIENTS = [e.strip() for e in os.environ.get("HSE_ALERT_RECIPIENTS", "").split(",") if e.strip()]
-
-# ==========================================================================
-# Identity, instance dir & real-workbook import profiles
-# ==========================================================================
-COMPANY_NAME = "ASANKO GOLD MINE"
-COMPANY_SUBTITLE = "Health, Safety & Environment Management System"
-SITE_ID = os.environ.get("HSE_SITE_ID", "default")
-INSTANCE_DIR = os.path.join(BASE_DIR, "instance")   # local runtime state
-
-# Rich operational incident workbooks (the real Asanko export format). If a
-# profile's file is present in data/, the validated importer maps its columns
-# into the incident register (overriding the standard sample). Header is the
-# zero-based pandas header row (1 == Excel row 2).
+# Optional richer operational incident workbook profile. The canonical importer
+# maps this workbook into the same Incident model as incident_register.xlsx.
 WORKBOOK_PROFILES = {
     "asanko_incidents_v1": {
-        "dataset": "incidents", "file": "incidents.xlsx",
-        "sheet": "DataBase", "header": 1,
-    },
+        "dataset": "incidents",
+        "file": "incidents.xlsx",
+        "sheet": "DataBase",
+        "header": 1,  # zero-based pandas header row; Excel row 2
+    }
 }

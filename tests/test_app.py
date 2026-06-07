@@ -1,99 +1,80 @@
-"""Smoke + behaviour tests for the HSE Management App.
+from __future__ import annotations
 
-Uses a throwaway SQLite database (set before importing the app) and the dummy
-data in data/ (CI runs generate_dummy_data.py first).
-"""
+import datetime as dt
+import importlib
 import os
-import tempfile
 
-# Point the app at a temp DB and disable browser/reloader BEFORE importing it.
-_TMPDB = os.path.join(tempfile.gettempdir(), "hse_ci_test.sqlite")
-os.environ["HSE_DATABASE_URI"] = f"sqlite:///{_TMPDB}"
+import pytest
+
+import config as C
+from core import DataStore
+from generate_dummy_data import generate
+from hse_dashboard.database import make_engine
+from hse_dashboard.importers import import_spreadsheets
+
+os.environ.setdefault("HSE_SKIP_GLOBAL_APP", "1")
 os.environ.setdefault("HSE_NO_BROWSER", "1")
 os.environ.setdefault("HSE_NO_RELOAD", "1")
-if os.path.exists(_TMPDB):
-    os.remove(_TMPDB)
 
-import pytest  # noqa: E402
 
-import app as A  # noqa: E402
-
-ALL = {"year": "All", "month": "All", "dept": "All", "area": "All"}
+def _write_workbooks(folder, anchor=dt.date(2026, 5, 31)):
+    data = generate(anchor=anchor)
+    folder.mkdir(parents=True, exist_ok=True)
+    for key, spec in C.DATASETS.items():
+        data[key].to_excel(folder / spec["file"], sheet_name=spec["sheet"], index=False)
+    return data
 
 
 @pytest.fixture()
-def client():
-    A.app.config["WTF_CSRF_ENABLED"] = False
-    A.app.config["TESTING"] = True
-    return A.app.test_client()
+def client(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    db_path = tmp_path / "hse.sqlite"
+    _write_workbooks(data_dir)
+    import_spreadsheets("site-a", data_dir, make_engine(str(db_path)), include_workbooks=False)
+    store = DataStore(data_dir=str(data_dir), db_path=str(db_path), site_id="site-a", auto_import=False)
+
+    monkeypatch.setenv("HSE_SKIP_GLOBAL_APP", "1")
+    app_module = importlib.import_module("app")
+    flask_app = app_module.create_app(store=store)
+    flask_app.config["TESTING"] = True
+    return flask_app.test_client()
 
 
-def login(c, username="admin", password="admin123"):
-    return c.post("/login", data={"username": username, "password": password})
+def test_public_pages_load(client):
+    for path in [
+        "/",
+        "/incidents",
+        "/actions",
+        "/compliance",
+        "/environmental",
+        "/contractors",
+        "/registers",
+        "/data",
+    ]:
+        response = client.get(path)
+        assert response.status_code == 200, path
 
 
-def test_unauthenticated_redirects(client):
-    assert client.get("/").status_code == 302
+def test_filter_scope_is_page_specific(client):
+    environmental = client.get("/environmental?year=2026&month=May&dept=Mining")
+    assert environmental.status_code == 200
+    assert b'name="year"' in environmental.data
+    assert b'name="month"' in environmental.data
+    assert b'name="dept"' not in environmental.data
+
+    data_page = client.get("/data")
+    assert data_page.status_code == 200
+    assert b"filterbar" not in data_page.data
 
 
-def test_all_pages_load_for_admin(client):
-    login(client)
-    for path in ["/", "/rates", "/incidents", "/events", "/actions", "/training",
-                 "/investigations", "/compliance", "/environmental", "/contractors",
-                 "/tailings", "/registers", "/alerts", "/report", "/data",
-                 "/admin/users", "/admin/audit"]:
-        assert client.get(path).status_code == 200, path
+def test_refresh_blocks_external_redirects(client):
+    response = client.post("/refresh", data={"next": "https://example.com/phish"})
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/"
 
 
-def test_create_investigation(client):
-    login(client)
-    inc = A.store.df("incidents")
-    incident_id = str(inc["ID"].iloc[0]) if not inc.empty else "INC-0001"
-    from models import Investigation
-    with A.app.app_context():
-        before = Investigation.query.count()
-    resp = client.post("/investigations/new", data={
-        "incident_id": incident_id, "hipo": "Yes", "method": "5-Whys",
-        "immediate_cause": "test", "root_cause": "ci root cause", "why1": "a",
-        "why2": "b", "why3": "c", "why4": "d", "why5": "e", "status": "Open",
-        "investigator": "Tester"})
-    assert resp.status_code == 302
-    with A.app.app_context():
-        assert Investigation.query.count() == before + 1
-
-
-def test_rolling_rates_shape():
-    r = A.store.rolling_rates(ALL)
-    assert set(("labels", "trifr", "ltifr", "aifr", "latest")).issubset(r)
-    assert len(r["labels"]) == len(r["trifr"]) == len(r["aifr"])
-
-
-def test_dashboard_has_twelve_kpis():
-    assert len(A.store.kpis(ALL)) == 12
-
-
-def test_capture_event_persists(client):
-    login(client)
-    before = A.store.df("events").shape[0]
-    resp = client.post("/events/new", data={
-        "category": "Near Miss", "date": "2026-05-20", "area": "Nkran Open Pit",
-        "severity": "2", "description": "ci automated test report"})
-    assert resp.status_code == 302
-    assert A.store.df("events").shape[0] == before + 1
-
-
-def test_role_gating_blocks_worker(client):
-    login(client, "worker", "worker123")
-    assert client.get("/incidents/new").status_code == 302   # blocked -> redirect
-    assert client.get("/events/new").status_code == 200       # allowed
-
-
-def test_import_audit_recorded():
-    from models import ImportRun
-    with A.app.app_context():
-        assert ImportRun.query.count() >= 1
-
-
-def test_trifr_is_non_negative_number():
-    cards = {c["label"]: c["value"] for c in A.store.kpis(ALL)}
-    assert isinstance(cards["TRIFR"], (int, float)) and cards["TRIFR"] >= 0
+def test_tables_have_client_enhancement_hooks(client):
+    response = client.get("/incidents?year=2026&month=May")
+    assert response.status_code == 200
+    assert b'class="data-table sortable"' in response.data
+    assert b"tables.js" in response.data
